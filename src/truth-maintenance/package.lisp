@@ -14,7 +14,10 @@
 ;;;
 ;;; Contradiction handling:
 ;;;   When two facts with the CONTRADICTION predicate are both believed,
-;;;   the TMS picks the most recently added root assumption and retracts it.
+;;;   the TMS traces each back through the justification graph to its root
+;;;   causes (user-asserted facts), and presents a proof-like derivation chain
+;;;   for each side. The user then explicitly chooses to retract one of the root
+;;;   causes to prevent the contradiction from re-occurring at the next inference.
 
 (defpackage :jarvis.truth-maintenance
   (:use :cl :jarvis.knowledge :jarvis.inference)

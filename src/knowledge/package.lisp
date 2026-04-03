@@ -16,6 +16,7 @@
    #:fact-id            ; fact → symbol
    #:fact-predicate     ; fact → symbol
    #:fact-args          ; fact → list
+  #:fact-negative-p    ; fact → boolean
    #:fact-derived-p     ; fact → boolean  (was this inferred, not asserted?)
    #:fact-usage-count   ; fact → integer
    #:fact-last-accessed ; fact → universal-time
@@ -26,6 +27,7 @@
    #:rule-name          ; rule → symbol
    #:rule-conditions    ; rule → list of patterns
    #:rule-conclusion    ; rule → pattern
+  #:rule-negative-p    ; rule → boolean  (does the conclusion mean a negative fact?)
    #:rule-priority      ; rule → integer  (higher fires first)
    #:rule-usage-count   ; rule → integer
 

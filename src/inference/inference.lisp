@@ -139,7 +139,8 @@
              (predicate    (first pattern))
              (pattern-args (rest pattern)))
         ;; Walk every fact matching the pattern's predicate.
-        (loop for fact in (jarvis.knowledge:lookup-facts :predicate predicate)
+          (loop for fact in (jarvis.knowledge:lookup-facts :predicate predicate
+                           :negative-p nil)
               ;; Stamp usage statistics on every accessed fact.
               do (jarvis.knowledge:touch-fact (jarvis.knowledge:fact-id fact))
               ;; Collect all successful sub-matches; skip mismatches silently.
@@ -216,6 +217,9 @@
            (new-fact  (apply #'jarvis.knowledge:make-fact predicate args)))
       ;; Mark as inferred so the TMS can track its justification.
       (setf (jarvis.knowledge:fact-derived-p new-fact) t)
+    ;; Propagate rule polarity into the derived fact.
+    (setf (jarvis.knowledge:fact-negative-p new-fact)
+      (jarvis.knowledge:rule-negative-p rule))
       ;; Increment the rule's usage counter.
       (incf (jarvis.knowledge:rule-usage-count rule))
       ;; Store (returns existing if duplicate).

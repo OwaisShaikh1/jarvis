@@ -31,6 +31,33 @@ Use one of the following startup flows from the project root:
 - Syntax: `status`
 - Behavior: Prints counts for current facts, rules, and completed traces.
 
+### add-fact (predicate args...)
+- Syntax: `add-fact (human plato)`
+- Syntax: `add-fact (likes plato wisdom)`
+- Syntax: `add-fact (!mortal harsh)`
+- Syntax: `add-fact (! mortal harsh)`
+- Behavior: Asserts one fact into the KB using a Lisp-style pattern.
+- Notes: If the same fact already exists, the command reports the existing fact ID instead of duplicating it.
+- Notes: Negative fact syntax is supported and stored as a negative fact (for example `!MORTAL(HARSH)`).
+
+### add-rule <name> ((conditions)) (conclusion)
+- Syntax: `add-rule human-implies-mortal ((human ?x)) (mortal ?x)`
+- Syntax: `add-rule mortal-implies-finite-life ((mortal ?x)) (finite-life ?x)`
+- Behavior: Adds one production rule to the rule DB using Lisp-style condition/conclusion patterns.
+- Notes: Conditions must be a list of patterns; conclusion must be a single pattern.
+
+### Negative rules
+- Syntax: `add-rule alive-implies-not-dead ((alive ?x)) (! dead ?x)`
+- Syntax: `add-rule alive-implies-not-dead ((alive ?x)) (!dead ?x)`
+- Behavior: A negated conclusion is stored as a negative fact when the rule fires.
+- Output example: if `alive(plato)` exists, inference can derive `!dead(plato)`.
+- Notes: Negative rules still use normal positive conditions; only the conclusion is marked negative.
+- Notes: The wrapped form `(! dead ?x)` is the canonical spelling.
+
+### Set exclusion / disjointness (alive excludes dead)
+- Current negation support is fact-level: negative rules derive negative facts such as `!dead(plato)`.
+- If you want universal exclusion for all `x`, that is still a separate predicate-level disjointness feature.
+
 ### facts
 - Syntax: `facts`
 - Behavior: Lists all currently believed facts with IDs and derived flags.
@@ -81,6 +108,14 @@ Use one of the following startup flows from the project root:
 - Syntax: `exit`
 - Behavior: Leaves the Jarvis CLI loop.
 
+## Persistence
+
+- Jarvis now persists facts and rules to separate text files in `data/`.
+- Facts file: `data/facts.txt`
+- Rules file: `data/rules.txt`
+- Load behavior: CLI startup loads persisted facts/rules once per process.
+- Save behavior: state is saved automatically after `add-fact`, `add-rule`, `infer`, `retract`, and `reset`.
+
 ## Fact ID Parsing
 
 The CLI accepts these forms and normalizes them to internal fact IDs:
@@ -96,6 +131,39 @@ The CLI accepts these forms and normalizes them to internal fact IDs:
 - `why ... -r` or `wy ... -r` gives complete ancestry chain to roots.
 - `why ... -p` or `prove ...` gives forward proof ordering (roots first, target last).
 - Recursive output is cycle-safe via visited-node tracking.
+
+## Contradiction Handling
+
+When contradictory facts are both present during `infer`, the system behaves as follows:
+
+### Detection and Root-Cause Analysis
+- The TMS traces each contradictory fact **backward** through the justification graph to its root assumptions (original user-asserted facts).
+- Each derivation chain is printed in a proof-like format, showing how the contradiction actually originated.
+
+### Output Format
+The output includes:
+1. **Derivation proofs** for each contradictory fact, showing the chain from root assumptions to the conflict:
+   ```
+   [proof] How MORTAL(HARSH) was derived:
+   [proof]   1. HUMAN(HARSH)  [root assumption]
+   [proof]   2. MORTAL(HARSH) [from rule: human-implies-mortal]
+   ```
+
+2. **Two resolution options** listing the root facts to retract (one option to break each derivation chain):
+   ```
+   [TMS] Root causes to resolve:
+   
+   [TMS] Option 1 — Retract root fact(s) that caused MORTAL(HARSH):
+   [TMS]   - retract HUMAN(HARSH)
+   
+   [TMS] Option 2 — Retract root fact(s) that caused !MORTAL(HARSH):
+   [TMS]   - retract FACT-10
+   ```
+
+### Resolution
+- Choose one option by retracting the suggested root fact(s): `retract <fact-id>`
+- Retracting a root fact automatically cascades the retraction through all derived facts, eliminating the contradiction source.
+- If you retry `infer` after resolving, the contradiction will no longer re-occur (assuming the root cause is not re-derived).
 
 ## Inference Loop Fix Included
 

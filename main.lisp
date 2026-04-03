@@ -54,6 +54,8 @@
 ;;; visualise the causal structure of one inference episode.
 ;;; ---------------------------------------------------------------------------
 
+(declaim (ftype function register-opposite-polarity-contradictions))
+
 (defun print-derivation-graph (dg)
   "Print the full node list and edge list of derivation graph DG."
   (format t "[graph] id=~A  nodes=~A  edges=~A  depth=~A~%"
@@ -240,6 +242,9 @@
           (format t "[TMS] Justified ~A  ←  rule-~A  ←  ~A~%"
                   out-id rule-id parent-ids)))
 
+        (register-opposite-polarity-contradictions)
+        (jarvis.truth-maintenance:check-contradictions)
+
 
       ;;; ─────────────────────────────────────────────────────────────────────
       ;;; Phase 4 — Trace Recorder (Layer 4)
@@ -362,6 +367,110 @@
 ;;; CLI helpers
 ;;; ---------------------------------------------------------------------------
 
+(defparameter *persistence-dir* #P"data/")
+(defparameter *facts-file* #P"data/facts.txt")
+(defparameter *rules-file* #P"data/rules.txt")
+(defvar *persistence-loaded-p* nil)
+
+(defun ensure-persistence-paths ()
+        "Ensure the persistence directory exists before reading/writing files."
+        (ensure-directories-exist *facts-file*)
+        (ensure-directories-exist *rules-file*)
+        (values))
+
+(defun fact->record (fact)
+        "Serialize FACT into a readable plist record."
+        (list :predicate (jarvis.knowledge:fact-predicate fact)
+                  :args (jarvis.knowledge:fact-args fact)
+                  :negative (jarvis.knowledge:fact-negative-p fact)
+                  :derived (jarvis.knowledge:fact-derived-p fact)))
+
+(defun record->fact (record)
+        "Deserialize RECORD into a FACT struct."
+        (let* ((predicate (getf record :predicate))
+                         (args      (getf record :args))
+                         (negative  (and (getf record :negative) t))
+                         (derived   (and (getf record :derived) t))
+                         (fact      (apply #'jarvis.knowledge:make-fact predicate args)))
+                (setf (jarvis.knowledge:fact-negative-p fact) negative)
+                (setf (jarvis.knowledge:fact-derived-p  fact) derived)
+                fact))
+
+(defun rule->record (rule)
+        "Serialize RULE into a readable plist record."
+        (list :name (jarvis.knowledge:rule-name rule)
+                  :conditions (jarvis.knowledge:rule-conditions rule)
+                  :conclusion (jarvis.knowledge:rule-conclusion rule)
+                  :negative (jarvis.knowledge:rule-negative-p rule)
+                  :priority (jarvis.knowledge:rule-priority rule)))
+
+(defun same-rule-signature-p (rule name conditions conclusion negative)
+        "Return T if RULE has the same logical content as the provided fields."
+        (and (eq (jarvis.knowledge:rule-name rule) name)
+                 (equal (jarvis.knowledge:rule-conditions rule) conditions)
+                 (equal (jarvis.knowledge:rule-conclusion rule) conclusion)
+                 (eq (jarvis.knowledge:rule-negative-p rule) negative)))
+
+(defun record->rule (record)
+        "Deserialize RECORD into a RULE struct."
+        (let* ((name       (getf record :name))
+                         (conditions (getf record :conditions))
+                         (conclusion (getf record :conclusion))
+                         (negative   (and (getf record :negative) t))
+                         (priority   (or (getf record :priority) 0))
+                         (encoded-conclusion (if negative
+                                                                     (cons '! conclusion)
+                                                                     conclusion))
+                         (rule (jarvis.knowledge:make-rule name conditions encoded-conclusion)))
+                (setf (jarvis.knowledge:rule-priority rule) priority)
+                rule))
+
+(defun save-persistent-state ()
+        "Persist all current facts and rules to separate txt files."
+        (ensure-persistence-paths)
+        (with-open-file (out *facts-file*
+                                                 :direction :output
+                                                 :if-exists :supersede
+                                                 :if-does-not-exist :create)
+                (dolist (fact (jarvis.knowledge:all-facts))
+                        (prin1 (fact->record fact) out)
+                        (terpri out)))
+        (with-open-file (out *rules-file*
+                                                 :direction :output
+                                                 :if-exists :supersede
+                                                 :if-does-not-exist :create)
+                (dolist (rule (jarvis.knowledge:all-rules))
+                        (prin1 (rule->record rule) out)
+                        (terpri out)))
+        (values))
+
+(defun load-persistent-state ()
+        "Load facts and rules from persistence files once per process." 
+        (unless *persistence-loaded-p*
+                (ensure-persistence-paths)
+                (when (probe-file *facts-file*)
+                        (with-open-file (in *facts-file* :direction :input)
+                                (loop for record = (read in nil :eof)
+                                          until (eq record :eof)
+                                          do (jarvis.knowledge:store-fact (record->fact record)))))
+                (when (probe-file *rules-file*)
+                        (with-open-file (in *rules-file* :direction :input)
+                                (loop for record = (read in nil :eof)
+                                          until (eq record :eof)
+                                          do (let* ((rule (record->rule record))
+                                                                (exists (find-if (lambda (r)
+                                                                                                    (same-rule-signature-p
+                                                                                                     r
+                                                                                                     (jarvis.knowledge:rule-name rule)
+                                                                                                     (jarvis.knowledge:rule-conditions rule)
+                                                                                                     (jarvis.knowledge:rule-conclusion rule)
+                                                                                                     (jarvis.knowledge:rule-negative-p rule)))
+                                                                                  (jarvis.knowledge:all-rules))))
+                                                   (unless exists
+                                                           (jarvis.knowledge:store-rule rule))))))
+                (setf *persistence-loaded-p* t))
+        (values))
+
 (defun ws-char-p (ch)
         "Return T when CH is considered command-line whitespace."
         (or (char= ch #\Space)
@@ -388,6 +497,17 @@
                                         (emit-token start end)
                                         (setf start end))))
                 (nreverse tokens)))
+
+(defun command-rest (line)
+        "Return trimmed text after the first command token in LINE."
+        (let* ((len (length line))
+                                 (i 0))
+                (loop while (and (< i len) (ws-char-p (char line i))) do (incf i))
+                (loop while (and (< i len) (not (ws-char-p (char line i)))) do (incf i))
+                (loop while (and (< i len) (ws-char-p (char line i))) do (incf i))
+                (if (< i len)
+                                (string-trim '(#\Space #\Tab) (subseq line i))
+                                "")))
 
 (defun id-symbol< (a b)
         "Sort helper for symbol IDs like FACT-12."
@@ -428,8 +548,9 @@
 
 (defun print-fact-brief (fact)
         "Print one line for FACT."
-        (format t "  ~A  ~A(~{~A~^ ~})~@[  derived=T~]~%"
+        (format t "  ~A  ~:[~;!~]~A(~{~A~^ ~})~@[  derived=T~]~%"
                                         (jarvis.knowledge:fact-id fact)
+                                        (jarvis.knowledge:fact-negative-p fact)
                                         (jarvis.knowledge:fact-predicate fact)
                                         (jarvis.knowledge:fact-args fact)
                                         (and (jarvis.knowledge:fact-derived-p fact) t)))
@@ -448,10 +569,33 @@
 (defun fact-expression-string (fact)
         "Return canonical predicate(args...) text for FACT."
         (if fact
-                        (format nil "~A(~{~A~^ ~})"
+                        (format nil "~:[~;!~]~A(~{~A~^ ~})"
+                                        (jarvis.knowledge:fact-negative-p fact)
                                         (jarvis.knowledge:fact-predicate fact)
                                         (jarvis.knowledge:fact-args fact))
                         "[missing-fact]"))
+
+(defun rule-conclusion-expression-string (rule)
+        "Return a printable rule conclusion including negation if present."
+        (format nil "~:[~;!~]~A(~{~A~^ ~})"
+                        (jarvis.knowledge:rule-negative-p rule)
+                        (first (jarvis.knowledge:rule-conclusion rule))
+                        (rest (jarvis.knowledge:rule-conclusion rule))))
+
+(defun register-opposite-polarity-contradictions ()
+        "Register contradiction pairs for facts that differ only by polarity."
+        (let ((facts (jarvis.knowledge:all-facts)))
+                (dolist (positive facts)
+                        (unless (jarvis.knowledge:fact-negative-p positive)
+                                (dolist (negative facts)
+                                        (when (and (jarvis.knowledge:fact-negative-p negative)
+                                                                 (eq (jarvis.knowledge:fact-predicate positive)
+                                                                     (jarvis.knowledge:fact-predicate negative))
+                                                                 (equal (jarvis.knowledge:fact-args positive)
+                                                                        (jarvis.knowledge:fact-args negative)))
+                                                (jarvis.truth-maintenance:register-contradiction
+                                                 (jarvis.knowledge:fact-id positive)
+                                                 (jarvis.knowledge:fact-id negative))))))))
 
 (defun explain-why-immediate (fact-id)
         "Explain the immediate support for FACT-ID from the TMS." 
@@ -537,7 +681,8 @@
                                                                                                                           parent-ids))))
                                                                                 (format t "  ~2D. ~A   [~A]~%"
                                                                                                 line-no expr fid)
-                                                                                (format t "      from line~:P ~{~A~^, ~} by ~A~%"
+                                                                                (format t "      from line~A ~{~A~^, ~} by ~A~%"
+                                                                                                (if (= (length parent-lines) 1) "" "s")
                                                                                                 parent-lines
                                                                                                 (jarvis.truth-maintenance::justification-rule-id just)))
                                                                         (progn
@@ -559,12 +704,13 @@
         (let ((rules (jarvis.knowledge:all-rules)))
                 (format t "[rules] ~A rule(s):~%" (length rules))
                 (dolist (r rules)
-                        (format t "  ~A  ~A  if ~A  =>  ~A  priority=~A~%"
+                        (format t "  ~A  ~A  if ~A  =>  ~A  priority=~A~@[  negative~]~%"
                                                         (jarvis.knowledge:rule-id r)
                                                         (jarvis.knowledge:rule-name r)
                                                         (jarvis.knowledge:rule-conditions r)
-                                                        (jarvis.knowledge:rule-conclusion r)
-                                                        (jarvis.knowledge:rule-priority r)))))
+                                                        (rule-conclusion-expression-string r)
+                                                        (jarvis.knowledge:rule-priority r)
+                                                        (and (jarvis.knowledge:rule-negative-p r) t)))))
 
 (defun run-inference-with-trace-and-tms (&key (max-cycles 1000))
         "Run inference, record trace, and add TMS justifications for new steps."
@@ -576,9 +722,12 @@
                                          (jarvis.trace:trace-step-output-id step)
                                          (jarvis.trace:trace-step-rule-id step)
                                          (jarvis.trace:trace-step-input-ids step)))
+                                (register-opposite-polarity-contradictions)
+                                (jarvis.truth-maintenance:check-contradictions)
                                 (format t "[infer] Derived ~A new fact(s). Trace steps this session: ~A~%"
                                                                 (length derived)
                                                                 (jarvis.trace:trace-step-count completed-trace))
+                                (save-persistent-state)
                                 derived))))
 
 (defun print-cli-help ()
@@ -587,6 +736,8 @@
         (format t "  help | commands                    Show this command list.~%")
         (format t "  demo                               Run the full main demo pipeline.~%")
         (format t "  status                             Show fact/rule/trace counts.~%")
+        (format t "  add-fact (predicate args...)       Assert one fact into the KB.~%")
+        (format t "  add-rule <name> ((conds)) (conc)   Add one production rule.~%")
         (format t "  facts                              List all current facts.~%")
         (format t "  rules                              List all loaded rules.~%")
         (format t "  infer [max-cycles]                 Run inference + trace + TMS update.~%")
@@ -596,9 +747,15 @@
         (format t "  prove <fact-id>                    Alias for proof-style explanation.~%")
         (format t "  why <fact-id> -r                   Alias of recursive explanation.~%")
         (format t "  retract <fact-id>                  Retract fact and all dependents.~%")
+        (format t "  Negative rule syntax: (! dead ?x) or (!dead ?x)~%")
         (format t "  reset                              Clear KB + TMS + traces.~%")
         (format t "  quit | exit                        Leave CLI.~%")
-        (format t "~%Fact id forms accepted: FACT-1, fact1, fact#1, or just 1.~%"))
+        (format t "~%Fact id forms accepted: FACT-1, fact1, fact#1, or just 1.~%")
+        (format t "Add syntax examples:~%")
+        (format t "  add-fact (human plato)~%")
+        (format t "  add-fact (!mortal harsh)~%")
+        (format t "  add-rule human-implies-mortal ((human ?x)) (mortal ?x)~%")
+        (format t "  add-rule alive-implies-not-dead ((alive ?x)) (! dead ?x)~%"))
 
 (defun handle-why-command (tokens)
         "Handle why/wy commands." 
@@ -629,6 +786,151 @@
                                 (when (>= n 0) n))
                 (error () nil)))
 
+(defun parse-one-form (text &optional (start 0))
+        "Read one Lisp form from TEXT at START, returning (values form next-pos err)."
+        (handler-case
+                        (multiple-value-bind (form next-pos)
+                                        (read-from-string text nil :eof :start start)
+                                (values form next-pos nil))
+                (error (e)
+                        (values nil start e))))
+
+(defun valid-pattern-p (pattern)
+        "Return T when PATTERN has the shape (predicate arg1 ...)."
+        (and (consp pattern)
+                 (symbolp (first pattern))))
+
+(defun valid-conditions-p (conditions)
+        "Return T when CONDITIONS is a list of valid patterns."
+        (and (listp conditions)
+                 (every #'valid-pattern-p conditions)))
+
+(defun normalize-fact-pattern (pattern)
+        "Normalize fact PATTERN and return (values predicate args negative-p err-msg).
+Supports (predicate ...), (! predicate ...), (not predicate ...), and (!predicate ...)."
+        (cond
+                ((not (consp pattern))
+                 (values nil nil nil "Fact must be a list pattern."))
+                ((string= (symbol-name (first pattern)) "!")
+                 (if (and (second pattern) (symbolp (second pattern)))
+                                 (values (second pattern) (cddr pattern) t nil)
+                                 (values nil nil nil "Negative fact form (! ...) requires a predicate symbol.")))
+                ((string= (symbol-name (first pattern)) "NOT")
+                 (if (and (second pattern) (symbolp (second pattern)))
+                                 (values (second pattern) (cddr pattern) t nil)
+                                 (values nil nil nil "Negative fact form (not ...) requires a predicate symbol.")))
+                ((and (symbolp (first pattern))
+                            (> (length (symbol-name (first pattern))) 1)
+                            (char= (char (symbol-name (first pattern)) 0) #\!))
+                 (values (intern (subseq (symbol-name (first pattern)) 1)
+                                                 (or (symbol-package (first pattern)) *package*))
+                                 (rest pattern)
+                                 t
+                                 nil))
+                ((and (symbolp (first pattern))
+                            (char= (char (symbol-name (first pattern)) 0) #\!))
+                 (values nil nil nil "Negative fact shorthand must be !predicate, not bare !."))
+                ((symbolp (first pattern))
+                 (values (first pattern) (rest pattern) nil nil))
+                (t
+                 (values nil nil nil "Fact predicate must be a symbol."))))
+
+(defun valid-rule-conclusion-p (conclusion)
+        "Return T when CONCLUSION is a valid positive pattern or a negative form."
+        (and (consp conclusion)
+                 (or (valid-pattern-p conclusion)
+                         (and (or (string= (symbol-name (first conclusion)) "!")
+                                  (string= (symbol-name (first conclusion)) "NOT")
+                                  (and (symbolp (first conclusion))
+                                           (let ((name (symbol-name (first conclusion))))
+                                                 (and (> (length name) 0)
+                                                          (char= (char name 0) #\!)))))))))
+
+(defun handle-add-fact-command (line)
+        "Handle: add-fact <fact-pattern>, where pattern is a Lisp form like (human plato)."
+        (let ((rest (command-rest line)))
+                (if (string= rest "")
+                                (format t "[add-fact] Usage: add-fact (predicate arg1 arg2 ...)~%")
+                                (multiple-value-bind (form pos err)
+                                                (parse-one-form rest)
+                                        (cond
+                                                (err
+                                                 (format t "[add-fact] Parse error: ~A~%" err))
+                                                ((eq form :eof)
+                                                 (format t "[add-fact] Missing fact pattern. Example: add-fact (human plato)~%"))
+                                                ((not (string= (string-trim '(#\Space #\Tab) (subseq rest pos)) ""))
+                                                 (format t "[add-fact] Unexpected trailing input after fact pattern.~%"))
+                                                (t
+                                                 (multiple-value-bind (predicate args negative-p fact-err)
+                                                                 (normalize-fact-pattern form)
+                                                         (if fact-err
+                                                                         (format t "[add-fact] ~A~%" fact-err)
+                                                                         (let* ((already (find-if (lambda (f)
+                                                                                                                             (and (equal (jarvis.knowledge:fact-args f) args)
+                                                                                                                                      (eq (jarvis.knowledge:fact-negative-p f) negative-p)))
+                                                                                                                   (jarvis.knowledge:lookup-facts :predicate predicate :negative-p negative-p)))
+                                                                                        (new-fact (apply #'jarvis.knowledge:make-fact predicate args))
+                                                                                        (stored nil))
+                                                                                 (setf (jarvis.knowledge:fact-negative-p new-fact) negative-p)
+                                                                                 (setf stored (jarvis.knowledge:store-fact new-fact))
+                                                                                 (if already
+                                                                                                 (format t "[add-fact] Fact already exists as ~A: ~:[~;!~]~A(~{~A~^ ~})~%"
+                                                                                                                 (jarvis.knowledge:fact-id stored)
+                                                                                                                 (jarvis.knowledge:fact-negative-p stored)
+                                                                                                                 (jarvis.knowledge:fact-predicate stored)
+                                                                                                                 (jarvis.knowledge:fact-args stored))
+                                                                                                 (format t "[add-fact] Added ~A: ~:[~;!~]~A(~{~A~^ ~})~%"
+                                                                                                                 (jarvis.knowledge:fact-id stored)
+                                                                                                                 (jarvis.knowledge:fact-negative-p stored)
+                                                                                                                 (jarvis.knowledge:fact-predicate stored)
+                                                                                                                 (jarvis.knowledge:fact-args stored)))
+                                                                                 (save-persistent-state))))))))))
+
+(defun handle-add-rule-command (line)
+        "Handle: add-rule <name> <conditions> <conclusion>.
+Example: add-rule human-implies-mortal ((human ?x)) (mortal ?x)"
+        (let ((rest (command-rest line)))
+                (if (string= rest "")
+                                (format t "[add-rule] Usage: add-rule <name> ((cond1) ...) (conclusion)~%")
+                                (multiple-value-bind (name-form pos1 err1)
+                                                (parse-one-form rest)
+                                        (cond
+                                                (err1
+                                                 (format t "[add-rule] Parse error (name): ~A~%" err1))
+                                                ((or (eq name-form :eof) (not (symbolp name-form)))
+                                                 (format t "[add-rule] Rule name must be a symbol. Example: human-implies-mortal~%"))
+                                                (t
+                                                 (multiple-value-bind (conditions pos2 err2)
+                                                                 (parse-one-form rest pos1)
+                                                         (cond
+                                                                 (err2
+                                                                  (format t "[add-rule] Parse error (conditions): ~A~%" err2))
+                                                                 ((eq conditions :eof)
+                                                                  (format t "[add-rule] Missing conditions. Example: ((human ?x))~%"))
+                                                                 ((not (valid-conditions-p conditions))
+                                                                  (format t "[add-rule] Conditions must be a list of patterns, e.g. ((human ?x) (mortal ?x)).~%"))
+                                                                 (t
+                                                                  (multiple-value-bind (conclusion pos3 err3)
+                                                                                  (parse-one-form rest pos2)
+                                                                          (cond
+                                                                                  (err3
+                                                                                   (format t "[add-rule] Parse error (conclusion): ~A~%" err3))
+                                                                                  ((eq conclusion :eof)
+                                                                                   (format t "[add-rule] Missing conclusion. Example: (mortal ?x)~%"))
+                                                                                  ((not (valid-rule-conclusion-p conclusion))
+                                                                                   (format t "[add-rule] Conclusion must be a pattern or negative form like (! dead ?x) or (!dead ?x).~%"))
+                                                                                  ((not (string= (string-trim '(#\Space #\Tab) (subseq rest pos3)) ""))
+                                                                                   (format t "[add-rule] Unexpected trailing input after conclusion.~%"))
+                                                                                  (t
+                                                                                   (let* ((rule (jarvis.knowledge:make-rule name-form conditions conclusion))
+                                                                                                          (stored (jarvis.knowledge:store-rule rule)))
+                                                                                           (format t "[add-rule] Added ~A (~A): ~A => ~A~%"
+                                                                                                           (jarvis.knowledge:rule-id stored)
+                                                                                                           (jarvis.knowledge:rule-name stored)
+                                                                                                           (jarvis.knowledge:rule-conditions stored)
+                                                                                                           (rule-conclusion-expression-string stored))
+                                                                                           (save-persistent-state))))))))))))))
+
 (defun jarvis-cli-handle-command (line)
         "Execute one CLI command line. Returns :QUIT to end the CLI loop." 
         (let* ((tokens (split-whitespace line))
@@ -646,6 +948,10 @@
                                                          (length (jarvis.knowledge:all-facts))
                                                          (length (jarvis.knowledge:all-rules))
                                                          (length (jarvis.trace:all-traces))))
+                        ((string= cmd "add-fact")
+                         (handle-add-fact-command line))
+                        ((string= cmd "add-rule")
+                         (handle-add-rule-command line))
                         ((string= cmd "facts")
                          (list-facts-command))
                         ((string= cmd "rules")
@@ -684,11 +990,13 @@
                                                          (t
                                                                 (let ((removed (jarvis.truth-maintenance:retract-with-support fid)))
                                                                         (format t "[retract] Removed ~A fact(s): ~A~%"
-                                                                                                        (length removed) removed)))))))
+                                                                                                                      (length removed) removed)
+                                                                                  (save-persistent-state)))))))
                         ((string= cmd "reset")
                          (jarvis.knowledge:clear-databases)
                          (jarvis.truth-maintenance:clear-tms)
                          (jarvis.trace:clear-traces)
+                            (save-persistent-state)
                          (format t "[reset] Cleared KB, TMS, and trace store.~%"))
                         ((or (string= cmd "quit") (string= cmd "exit"))
                          :quit)
@@ -697,6 +1005,7 @@
 
 (defun jarvis-cli ()
         "Start an interactive command-line interface for inspecting and steering Jarvis."
+        (load-persistent-state)
         (format t "~%Jarvis CLI ready. Type 'help' for commands. Type 'quit' to exit.~%")
         (loop
                 (format t "jarvis> ")

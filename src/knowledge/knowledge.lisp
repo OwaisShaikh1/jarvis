@@ -47,6 +47,7 @@
 ;;; A FACT is the atomic unit of knowledge.  It records:
 ;;;   PREDICATE    — the relation name, e.g. MORTAL.
 ;;;   ARGS         — zero or more ground symbolic arguments, e.g. (SOCRATES).
+;;;   NEGATIVE-P   — T if this fact is explicitly negative (an excluded state).
 ;;;   DERIVED-P    — was this asserted by the user (NIL) or derived by a rule (T)?
 ;;;   USAGE-COUNT  — incremented by TOUCH-FACT each time another module reads it.
 ;;;   LAST-ACCESSED — a universal-time timestamp updated on every access.
@@ -57,6 +58,7 @@
   id           ; symbol, e.g. FACT-1
   predicate    ; symbol, e.g. MORTAL
   args         ; list of symbols, e.g. (SOCRATES)
+  (negative-p nil :type boolean)
   derived-p    ; boolean — T if inferred by a rule, NIL if asserted by a user
   (usage-count 0 :type integer)
   (last-accessed 0 :type integer))  ; universal-time from GET-UNIVERSAL-TIME
@@ -86,6 +88,10 @@
 ;;;   CONCLUSION — a single pattern in the same format.
 ;;;                Example: (dies ?x)
 ;;;
+;;;   NEGATIVE-P — T if the rule's conclusion should be stored as a negative
+;;;                fact.  The conclusion pattern itself is normalized to the
+;;;                underlying predicate/args form.
+;;;
 ;;;   PRIORITY   — integer, higher fires first.  Principles get very high
 ;;;                priority so they short-circuit deep reasoning chains.
 ;;; ---------------------------------------------------------------------------
@@ -96,17 +102,50 @@
   name         ; human-readable symbol, e.g. MODUS-PONENS
   conditions   ; list of patterns with optional ?variables
   conclusion   ; single pattern
+  (negative-p nil :type boolean)
   (priority 0 :type integer)
   (usage-count 0 :type integer))
+
+(defun normalize-rule-conclusion (conclusion)
+  "Return two values: a normalized positive conclusion pattern and a negative flag.
+   Accepts negation wrappers of the form (! predicate args...) or (not predicate args...)."
+  (cond
+    ((and (consp conclusion)
+    (string= (symbol-name (first conclusion)) "!"))
+  (if (null (rest conclusion))
+      (error "Negative rule conclusion (! ...) requires a predicate and optional args.")
+      (values (rest conclusion) t)))
+    ((and (consp conclusion)
+    (string= (symbol-name (first conclusion)) "NOT"))
+  (if (null (rest conclusion))
+      (error "Negative rule conclusion (not ...) requires a predicate and optional args.")
+      (values (rest conclusion) t)))
+    ((and (consp conclusion)
+          (symbolp (first conclusion))
+    (> (length (symbol-name (first conclusion))) 1)
+    (char= (char (symbol-name (first conclusion)) 0) #\!))
+  (values (cons (intern (subseq (symbol-name (first conclusion)) 1)
+            (or (symbol-package (first conclusion)) *package*))
+          (rest conclusion))
+       t))
+    ((and (consp conclusion)
+    (symbolp (first conclusion))
+    (char= (char (symbol-name (first conclusion)) 0) #\!))
+  (error "Negative rule conclusion must be either (! predicate args...) or (!predicate args...) with a real predicate name."))
+    (t
+     (values conclusion nil))))
 
 (defun make-rule (name conditions conclusion)
   "Construct a new RULE.  NAME is a descriptive symbol.
    CONDITIONS is a list of patterns; CONCLUSION is a single pattern.
    The rule is not stored — call STORE-RULE to register it in *RULE-DB*."
-  (%make-rule :id         (next-id "RULE")
-              :name       name
-              :conditions conditions
-              :conclusion conclusion))
+  (multiple-value-bind (normalized-conclusion negative-p)
+      (normalize-rule-conclusion conclusion)
+    (%make-rule :id         (next-id "RULE")
+                :name       name
+                :conditions conditions
+                :conclusion normalized-conclusion
+                :negative-p negative-p)))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -176,15 +215,17 @@
    Returns the stored FACT (possibly the pre-existing one)."
   (let ((existing (find-if (lambda (f)
                              (and (eq (fact-predicate f) (fact-predicate fact))
-                                  (equal (fact-args f) (fact-args fact))))
-                           (lookup-facts :predicate (fact-predicate fact)))))
+              (equal (fact-args f) (fact-args fact))
+              (eq (fact-negative-p f) (fact-negative-p fact))))
+            (lookup-facts :predicate (fact-predicate fact)
+                :negative-p (fact-negative-p fact)))))
     (if existing
         ;; Duplicate — return what we already have rather than cluttering the DB.
         existing
         (progn
           ;; New fact — register it in the primary database.
           (setf (gethash (fact-id fact) *fact-db*) fact)
-          ;; Update the predicate → [fact-id ...] index.
+              ;; Update the predicate → [fact-id ...] index.
           (push (fact-id fact)
                 (gethash (fact-predicate fact) *predicate-fact-index* nil))
           fact))))
@@ -203,14 +244,18 @@
       (remhash fact-id *fact-db*)
       t)))
 
-(defun lookup-facts (&key predicate)
+(defun lookup-facts (&key predicate (negative-p :any))
   "Return a list of FACT structs.
    If PREDICATE is supplied, only facts with that predicate are returned.
-   Otherwise every fact in *FACT-DB* is returned."
+   If NEGATIVE-P is NIL or T, filter by fact polarity as well.
+   If NEGATIVE-P is :ANY, return both positive and negative facts."
   (if predicate
       ;; Use the index for O(k) lookup instead of scanning all facts.
-      (mapcar (lambda (id) (gethash id *fact-db*))
-              (gethash predicate *predicate-fact-index* nil))
+      (remove-if-not (lambda (fact)
+           (or (eq negative-p :any)
+         (eq (fact-negative-p fact) negative-p)))
+         (mapcar (lambda (id) (gethash id *fact-db*))
+           (gethash predicate *predicate-fact-index* nil)))
       ;; No filter — return everything.
       (loop for fact being the hash-values of *fact-db* collect fact)))
 
@@ -220,8 +265,9 @@
 
 (defun fact-exists-p (predicate &rest args)
   "Return T if *FACT-DB* contains a fact with the given PREDICATE and ARGS."
-  (not (null (find-if (lambda (f) (equal (fact-args f) args))
-                      (lookup-facts :predicate predicate)))))
+  (not (null (find-if (lambda (f) (and (not (fact-negative-p f))
+                                       (equal (fact-args f) args)))
+                      (lookup-facts :predicate predicate :negative-p nil)))))
 
 (defun touch-fact (fact-id)
   "Increment the usage counter and refresh the timestamp of the fact with FACT-ID.

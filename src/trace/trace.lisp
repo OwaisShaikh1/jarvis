@@ -138,7 +138,8 @@
                      (lambda (f)
                        (and (eq    (jarvis.knowledge:fact-predicate f) predicate)
                             (equal (jarvis.knowledge:fact-args f)      args)))
-                     (jarvis.knowledge:lookup-facts :predicate predicate))
+                     (jarvis.knowledge:lookup-facts :predicate predicate
+                                                     :negative-p nil))
         ;; A match should always exist at this point — the inference engine
         ;; only fires rules whose conditions are already satisfied.
         when match

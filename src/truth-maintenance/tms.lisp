@@ -160,12 +160,68 @@
                    (or (and (eq (car a) (car b)) (eq (cdr a) (cdr b)))
                        (and (eq (car a) (cdr b)) (eq (cdr a) (car b)))))))
 
+(defun trace-roots-recursively (fact-id visited chain-depth)
+  "Recursively trace FACT-ID back through the justification graph to its root assumptions.
+   Returns a list of (fact-id depth rule-id) tuples representing the derivation chain.
+   VISITED is an EQ hash-table to prevent infinite loops.
+   CHAIN-DEPTH tracks how many levels deep we are."
+  (unless (gethash fact-id visited)
+    (setf (gethash fact-id visited) t)
+    (let ((just (justification-for fact-id)))
+      (if just
+          ;; Derived fact: emit this step and recurse to parents
+          (cons (list fact-id chain-depth (justification-rule-id just))
+                (loop for parent-id in (justification-parent-ids just)
+                      append (trace-roots-recursively parent-id visited (1+ chain-depth))))
+          ;; Root assumption: emit and stop
+          (list (list fact-id chain-depth nil))))))
+
+(defun collect-root-facts (fact-id)
+  "Collect all root assumptions (user-asserted facts without derivations) that support FACT-ID.
+   Returns a list of root fact-ids."
+  (let ((visited (make-hash-table :test #'eq)))
+    (let ((chain (trace-roots-recursively fact-id visited 0)))
+      (remove-if-not (lambda (item)
+                       (null (third item)))  ; rule-id is NIL for root assumptions
+                     chain))))
+
+(defun format-fact-with-id (fact-id)
+  "Return a string representation of FACT-ID with its content.
+   Format: FACT-N: predicate(args...)
+   Returns 'FACT-N: [missing-fact]' if the fact is no longer in the database."
+  (let ((fact (gethash fact-id *fact-db*)))
+    (if fact
+        (format nil "~A: ~:[~;!~]~A(~{~A~^ ~})"
+                fact-id
+                (fact-negative-p fact)
+                (fact-predicate fact)
+                (fact-args fact))
+        (format nil "~A: [missing-fact]" fact-id))))
+
+(defun format-derivation-proof (fact-id title)
+  "Format the full derivation chain from roots to FACT-ID as a proof-like display.
+   TITLE is a label (e.g., 'Path to MORTAL(HARSH)').
+   Each fact is displayed with both its ID and its content (predicate and arguments)."
+  (let* ((visited (make-hash-table :test #'eq))
+         (chain (trace-roots-recursively fact-id visited 0))
+         (sorted (sort chain #'< :key #'second)))
+    (format t "~&[proof] ~A~%" title)
+    (dolist (step sorted)
+      (destructuring-bind (id depth rule-id) step
+        (if (null rule-id)
+            ;; Root assumption
+            (format t "[proof]   ~D. ~A  [root assumption]~%" 
+                    (1+ depth) (format-fact-with-id id))
+            ;; Derived fact
+            (format t "[proof]   ~D. ~A  [from rule: ~A]~%" 
+                    (1+ depth) (format-fact-with-id id) rule-id))))))
+
 (defun check-contradictions ()
   "Scan all registered contradiction pairs.  For any pair where BOTH facts
-   are currently believed, retract the one that was derived most recently
-   (i.e., the one with the higher fact-id number — a proxy for recency since
-   IDs are assigned monotonically).
-   Returns T if at least one contradiction was found and resolved, NIL otherwise."
+   are currently believed, trace each back to its root causes and present them
+   with proof-like derivation chains. No automatic retraction is performed.
+   The user must explicitly choose to retract a root cause via retract command.
+   Returns T if at least one contradiction was found, NIL otherwise."
   (let ((found nil))
     (dolist (pair *contradiction-pairs*)
       (let* ((id-a (car pair))
@@ -175,16 +231,37 @@
         ;; Both facts must still exist for a contradiction to be live.
         (when (and fact-a fact-b)
           (setf found t)
-          (format t "[TMS] Contradiction detected between ~A and ~A~%" id-a id-b)
-          ;; Retract the more recently derived one (higher numeric ID suffix).
-          ;; This is a simple heuristic; a real system might use Doyle's
-          ;; dependency-directed backtracking to choose more carefully.
-          (let ((retract-id (if (string> (symbol-name id-a)
-                                         (symbol-name id-b))
-                                id-a
-                                id-b)))
-            (format t "[TMS] Retracting ~A and its dependents.~%" retract-id)
-            (retract-with-support retract-id)))))
+          (format t "~&[TMS] ════════════════════════════════════════════════════════════~%")
+          (format t "[TMS] Contradiction detected: ~A and ~A cannot both be true~%" id-a id-b)
+          (format t "[TMS] ════════════════════════════════════════════════════════════~%~%")
+          
+          ;; Show derivation chain for first fact
+          (format-derivation-proof id-a (format nil "How ~A was derived:" id-a))
+          (format t "~%")
+          
+          ;; Show derivation chain for second fact
+          (format-derivation-proof id-b (format nil "How ~A was derived:" id-b))
+          (format t "~%~%")
+          
+          ;; Collect root causes for both
+          (let ((roots-a (collect-root-facts id-a))
+                (roots-b (collect-root-facts id-b)))
+            
+            (format t "[TMS] Root causes to resolve:~%~%")
+            
+            ;; Option 1: retract roots of first fact
+            (format t "[TMS] Option 1 — Retract root fact(s) that caused ~A:~%" id-a)
+            (dolist (root roots-a)
+              (format t "[TMS]   - retract ~A~%" (first root)))
+            (format t "~%")
+            
+            ;; Option 2: retract roots of second fact  
+            (format t "[TMS] Option 2 — Retract root fact(s) that caused ~A:~%" id-b)
+            (dolist (root roots-b)
+              (format t "[TMS]   - retract ~A~%" (first root)))
+            (format t "~%")
+            
+            (format t "[TMS] Use: retract <fact-id> to resolve~%~%")))))
     found))
 
 
