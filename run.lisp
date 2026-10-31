@@ -9,14 +9,16 @@
 ;;; the MAIN function in main.lisp.  No interactive input is required.
 
 ;;; Step 1 — Register the project so ASDF can find jarvis.asd.
-(pushnew #P"c:/Users/OWAIS/MyStuff/Projects/AAAA My projects/AI/jarvis/"
-         asdf:*central-registry* :test #'equal)
+(require :asdf)
+(defparameter cl-user::*jarvis-root*
+  (make-pathname :name nil :type nil :version nil :defaults *load-truename*))
+(pushnew cl-user::*jarvis-root* asdf:*central-registry* :test #'equal)
 
 ;;; Step 2 — Compile and load all five layers.
 (asdf:load-system "jarvis")
 
 ;;; Step 3 — Load the demo entry point.
-(load "main.lisp")
+(load (merge-pathnames "main.lisp" cl-user::*jarvis-root*))
 
 ;;; Step 4 — Run the demo.
 (main)
