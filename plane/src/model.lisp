@@ -68,14 +68,21 @@
 (defun def-entity-type (type &key params)
   (setf (gethash type *entity-types*) params))
 
+(defun %entity-type-key (type)
+  (or (and (gethash type *entity-types*) type)
+      (loop for key being the hash-keys of *entity-types*
+            when (string-equal (symbol-name key) (symbol-name type))
+              return key)))
+
 (defun add-entity (name type &key params)
-  (unless (gethash type *entity-types*)
+  (let ((type-key (%entity-type-key type)))
+    (unless type-key
     (error "Unknown entity type ~A" type))
-  (setf (gethash name *entity-registry*) type)
-  (assert-plane-fact 'entity name type)
-  (dolist (param params)
-    (apply #'set-param name (first param) (rest param)))
-  name)
+    (setf (gethash name *entity-registry*) type-key)
+    (assert-plane-fact 'entity name type-key)
+    (dolist (param params)
+      (apply #'set-param name (first param) (rest param)))
+    name))
 
 (defun set-param (entity name value &key status unit bounds sigma)
   (declare (ignore status unit sigma))

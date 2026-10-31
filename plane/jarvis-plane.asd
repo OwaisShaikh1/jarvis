@@ -12,4 +12,5 @@
                (:file "algebra-native")
                (:file "numerics")
                (:file "sim")
-               (:file "laws")))
+               (:file "laws")
+               (:file "cli")))

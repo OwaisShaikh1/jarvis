@@ -2,4 +2,6 @@
   (:use :cl)
   (:export #:jarvis-cli
            #:jarvis-cli-handle-command
-           #:main))
+           #:main
+           #:register-command
+           #:*command-registry*))

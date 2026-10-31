@@ -1,0 +1,104 @@
+(in-package :jarvis.plane.cli)
+
+(defun %number (text)
+  (handler-case
+      (let ((*read-eval* nil))
+        (multiple-value-bind (value position)
+            (read-from-string text nil nil)
+          (unless (and value (= position (length text)) (numberp value))
+            (error "not a number"))
+          (coerce value 'double-float)))
+    (error () (error "Invalid number ~A" text))))
+
+(defun %split-equals (token)
+  (let ((position (position #\= token)))
+    (unless position (error "Expected name=value, got ~A" token))
+    (values (intern (string-upcase (subseq token 0 position))
+                    :jarvis.plane.model)
+            (%number (subseq token (1+ position))))))
+
+(defun %plane-new (tokens line)
+  (declare (ignore tokens line))
+  (jarvis.plane.model:clear-plane)
+  (clrhash jarvis.plane.sim:*trajectories*)
+  (format t "[plane] new plane~%"))
+
+(defun %add-entity (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 3)
+      (format t "[add-entity] Usage: add-entity <name> <type> [param=value ...]~%")
+      (handler-case
+          (let ((name (intern (string-upcase (second tokens)) :jarvis.plane.model))
+                (type (intern (string-upcase (third tokens)) :jarvis.plane.model))
+                (params nil))
+            (dolist (token (cdddr tokens))
+              (multiple-value-bind (key value) (%split-equals token)
+                (push (list key value) params)))
+            (jarvis.plane.model:add-entity name type :params (nreverse params))
+            (format t "[add-entity] ~A ~A: ~A parameter(s)~%"
+                    name type (length params)))
+        (error (condition)
+          (format t "[add-entity] ~A~%" condition)))))
+
+(defun %simulate (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 4)
+      (format t "[simulate] Usage: simulate <entity> <model> <t-end> [dt]~%")
+      (handler-case
+          (let ((entity (intern (string-upcase (second tokens))
+                                :jarvis.plane.model))
+                (model (intern (string-upcase (third tokens))
+                               :jarvis.plane.sim))
+                (end (%number (fourth tokens)))
+                (dt (if (fifth tokens) (%number (fifth tokens)) 0.01d0)))
+            (multiple-value-bind (id trajectory)
+                (jarvis.plane.sim:simulate entity model end dt)
+              (declare (ignore trajectory))
+              (format t "[simulate] ~A~%" id)))
+        (error (condition)
+          (format t "[simulate] ~A~%" condition)))))
+
+(defun %laws (tokens line)
+  (declare (ignore tokens line))
+  (dolist (entry (sort (copy-list (jarvis.plane.laws:laws))
+                       #'string< :key (lambda (item)
+                                       (symbol-name (jarvis.plane.laws:law-name item)))))
+    (format t "~A~:[~; (enabled)~]~% "
+            (jarvis.plane.laws:law-name entry)
+            (jarvis.plane.laws:law-enabled-p entry))))
+
+(defun %enable-law (tokens line enabled)
+  (declare (ignore line))
+  (if (< (length tokens) 2)
+      (format t "[law] Usage: ~A <name>~%" (if enabled "enable-law" "disable-law"))
+      (handler-case
+          (progn
+            (if enabled
+                (jarvis.plane.laws:enable-law
+                 (intern (string-upcase (second tokens)) :jarvis.plane.laws))
+                (jarvis.plane.laws:disable-law
+                 (intern (string-upcase (second tokens)) :jarvis.plane.laws)))
+            (format t "[law] ~A ~A~%" (if enabled "enabled" "disabled")
+                    (second tokens)))
+        (error (condition) (format t "[law] ~A~%" condition)))))
+
+(defun register-plane-commands ()
+  (jarvis.cli:register-command "plane-new" #'%plane-new
+                                "Clear plane state while keeping core KB.")
+  (jarvis.cli:register-command "add-entity" #'%add-entity
+                                "Add a plane entity and parameters.")
+  (jarvis.cli:register-command "simulate" #'%simulate
+                                "Run a registered simulation model.")
+  (jarvis.cli:register-command "laws" #'%laws
+                                "List registered physics laws.")
+  (jarvis.cli:register-command "enable-law"
+                                (lambda (tokens line)
+                                  (%enable-law tokens line t))
+                                "Enable a physics law.")
+  (jarvis.cli:register-command "disable-law"
+                                (lambda (tokens line)
+                                  (%enable-law tokens line nil))
+                                "Disable a physics law.")
+  t)
+
+(register-plane-commands)

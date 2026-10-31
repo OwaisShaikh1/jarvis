@@ -118,3 +118,10 @@
 (register-sim-model :ballistic #'%ballistic-builder)
 (register-sim-model :spring-1d #'%spring-builder)
 (register-sim-model :incline-slide #'%incline-builder)
+
+(jarvis.plane.model:def-entity-type
+ 'particle :params '(mass drag x0 y0 v0 angle))
+(jarvis.plane.model:def-entity-type
+ 'spring :params '(k mass x0 v0))
+(jarvis.plane.model:def-entity-type
+ 'incline :params '(angle mu distance))

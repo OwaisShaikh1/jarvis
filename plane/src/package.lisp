@@ -44,6 +44,10 @@
 
 (defpackage :jarvis.plane.laws
   (:use :cl)
-  (:export #:law #:enable-law #:disable-law #:laws
+  (:export #:law #:law-name #:enable-law #:disable-law #:laws
            #:law-enabled-p #:*law-registry* #:apply-enabled-laws
            #:evaluate-law))
+
+(defpackage :jarvis.plane.cli
+  (:use :cl)
+  (:export #:register-plane-commands))

@@ -1,5 +1,8 @@
 (in-package :jarvis.cli)
 
+(defun register-command (name handler &optional help)
+  (cl-user::legacy-register-command name handler help))
+
 (defun main ()
   "Run the Jarvis demonstration."
   (cl-user::legacy-main))

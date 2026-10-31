@@ -365,6 +365,22 @@
 
 ;;; ---------------------------------------------------------------------------
 ;;; CLI helpers
+
+(defparameter *command-registry* (make-hash-table :test #'equal))
+
+(defun legacy-register-command (name handler &optional help)
+        "Register an extension command handled before the legacy dispatch."
+        (check-type name string)
+        (check-type handler function)
+        (setf (gethash (string-downcase name) *command-registry*)
+              (list handler help))
+        name)
+
+(defun run-registered-command (cmd tokens line)
+        (let ((entry (gethash cmd *command-registry*)))
+                (when entry
+                        (funcall (first entry) tokens line)
+                        t)))
 ;;; ---------------------------------------------------------------------------
 
 (defvar *data-dir* (asdf:system-relative-pathname :jarvis "data/"))
@@ -772,6 +788,13 @@
         (format t "  Negative rule syntax: (! dead ?x) or (!dead ?x)~%")
         (format t "  reset                              Clear KB + TMS + traces.~%")
         (format t "  quit | exit                        Leave CLI.~%")
+        (maphash (lambda (name entry)
+                             (when (second entry)
+                                     (format t "  ~A~V@T~A~%"
+                                             name
+                                             (max 1 (- 36 (length name)))
+                                             (second entry))))
+                 *command-registry*)
         (format t "~%Fact id forms accepted: FACT-1, fact1, fact#1, or just 1.~%")
         (format t "Add syntax examples:~%")
         (format t "  add-fact (human plato)~%")
@@ -969,6 +992,8 @@ Example: add-rule human-implies-mortal ((human ?x)) (mortal ?x)"
                 (cond
                         ((or (string= cmd "") (string= cmd ";"))
                          nil)
+                ((run-registered-command cmd tokens line)
+                 nil)
                         ((or (string= cmd "help") (string= cmd "commands"))
                          (print-cli-help))
                         ((string= cmd "demo")
