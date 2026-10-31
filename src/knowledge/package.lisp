@@ -13,6 +13,8 @@
   (:export
    ;; ── Fact constructors / accessors ──────────────────────────────────────
    #:make-fact          ; (predicate &rest args) → fact
+   #:rule-error
+   #:rule-error-message
    #:fact-id            ; fact → symbol
    #:fact-predicate     ; fact → symbol
    #:fact-args          ; fact → list

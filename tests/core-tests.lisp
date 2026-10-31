@@ -151,9 +151,9 @@
     (jarvis.inference:run-inference)
     (is (find-fact 'ok 'plato))))
 
-(test p8-range-restriction (:expected-failure "P8: unbound conclusion variables")
+(test p8-range-restriction
   (with-clean-kb
-    (signals error
+    (signals jarvis.knowledge:rule-error
       (jarvis.knowledge:make-rule
        'unbound '((human ?x)) '(likes ?x ?y)))))
 

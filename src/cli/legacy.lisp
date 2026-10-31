@@ -431,6 +431,24 @@
                 (setf (jarvis.knowledge:rule-priority rule) priority)
                 rule))
 
+(defun load-rule-record (record)
+        "Load RECORD unless it violates the rule validation constraints."
+        (handler-case
+                (let* ((rule (record->rule record))
+                       (exists (find-if (lambda (r)
+                                          (same-rule-signature-p
+                                           r
+                                           (jarvis.knowledge:rule-name rule)
+                                           (jarvis.knowledge:rule-conditions rule)
+                                           (jarvis.knowledge:rule-conclusion rule)
+                                           (jarvis.knowledge:rule-negative-p rule)))
+                                        (jarvis.knowledge:all-rules))))
+                  (unless exists
+                    (jarvis.knowledge:store-rule rule)))
+          (jarvis.knowledge:rule-error (err)
+            (format t "[persistence] Skipping invalid rule: ~A~%"
+                    (jarvis.knowledge:rule-error-message err)))))
+
 (defun save-persistent-state ()
         "Persist all current facts and rules to separate txt files."
         (ensure-persistence-paths)
@@ -472,17 +490,7 @@
                                       (*read-default-float-format* 'double-float))
                                   (loop for record = (read in nil :eof)
                                             until (eq record :eof)
-                                            do (let* ((rule (record->rule record))
-                                                                  (exists (find-if (lambda (r)
-                                                                                                      (same-rule-signature-p
-                                                                                                       r
-                                                                                                       (jarvis.knowledge:rule-name rule)
-                                                                                                       (jarvis.knowledge:rule-conditions rule)
-                                                                                                       (jarvis.knowledge:rule-conclusion rule)
-                                                                                                       (jarvis.knowledge:rule-negative-p rule)))
-                                                                                    (jarvis.knowledge:all-rules))))
-                                                     (unless exists
-                                                             (jarvis.knowledge:store-rule rule)))))))
+                                            do (load-rule-record record)))))
                 (setf *persistence-loaded-p* t))
         (values))
 
@@ -941,14 +949,18 @@ Example: add-rule human-implies-mortal ((human ?x)) (mortal ?x)"
                                                                                   ((not (string= (string-trim '(#\Space #\Tab) (subseq rest pos3)) ""))
                                                                                    (format t "[add-rule] Unexpected trailing input after conclusion.~%"))
                                                                                   (t
-                                                                                   (let* ((rule (jarvis.knowledge:make-rule name-form conditions conclusion))
-                                                                                                          (stored (jarvis.knowledge:store-rule rule)))
-                                                                                           (format t "[add-rule] Added ~A (~A): ~A => ~A~%"
-                                                                                                           (jarvis.knowledge:rule-id stored)
-                                                                                                           (jarvis.knowledge:rule-name stored)
-                                                                                                           (jarvis.knowledge:rule-conditions stored)
-                                                                                                           (rule-conclusion-expression-string stored))
-                                                                                           (save-persistent-state))))))))))))))
+                                                                                   (handler-case
+                                                                                       (let* ((rule (jarvis.knowledge:make-rule name-form conditions conclusion))
+                                                                                              (stored (jarvis.knowledge:store-rule rule)))
+                                                                                         (format t "[add-rule] Added ~A (~A): ~A => ~A~%"
+                                                                                                 (jarvis.knowledge:rule-id stored)
+                                                                                                 (jarvis.knowledge:rule-name stored)
+                                                                                                 (jarvis.knowledge:rule-conditions stored)
+                                                                                                 (rule-conclusion-expression-string stored))
+                                                                                         (save-persistent-state))
+                                                                                     (jarvis.knowledge:rule-error (err)
+                                                                                       (format t "[add-rule] ~A~%"
+                                                                                               (jarvis.knowledge:rule-error-message err))))))))))))))))
 
 (defun legacy-jarvis-cli-handle-command (line)
         "Execute one CLI command line. Returns :QUIT to end the CLI loop." 

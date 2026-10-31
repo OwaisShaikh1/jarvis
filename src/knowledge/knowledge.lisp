@@ -135,12 +135,45 @@
     (t
      (values conclusion nil))))
 
+(define-condition rule-error (error)
+  ((message :initarg :message :reader rule-error-message)))
+
+(defun logic-variable-p (term)
+  "Return T when TERM is a non-empty symbol beginning with ?. "
+  (and (symbolp term)
+       (let ((name (symbol-name term)))
+         (and (plusp (length name))
+              (char= (char name 0) #\?)))))
+
+(defun pattern-variables (pattern)
+  "Collect all logic variables occurring anywhere in PATTERN."
+  (remove-duplicates
+   (labels ((walk (term)
+              (cond
+                ((logic-variable-p term) (list term))
+                ((consp term) (append (walk (car term))
+                                      (walk (cdr term))))
+                (t nil))))
+     (walk pattern))
+   :test #'eq))
+
 (defun make-rule (name conditions conclusion)
   "Construct a new RULE.  NAME is a descriptive symbol.
    CONDITIONS is a list of patterns; CONCLUSION is a single pattern.
    The rule is not stored — call STORE-RULE to register it in *RULE-DB*."
   (multiple-value-bind (normalized-conclusion negative-p)
       (normalize-rule-conclusion conclusion)
+    (let ((condition-variables
+            (remove-duplicates
+             (mapcan #'pattern-variables conditions)
+             :test #'eq))
+          (conclusion-variables (pattern-variables normalized-conclusion)))
+      (dolist (variable conclusion-variables)
+        (unless (member variable condition-variables :test #'eq)
+          (error 'rule-error
+                 :message (format nil
+                                  "Conclusion variable ~A is not bound by a condition."
+                                  variable)))))
     (%make-rule :id         (next-id "RULE")
                 :name       name
                 :conditions conditions
