@@ -14,14 +14,13 @@ Prepare the development environment and base tools.
 
 1. **Common Lisp**
 2. **SBCL** (recommended Lisp implementation)
-3. **Quicklisp** package manager
+3. **Quicklisp** package manager (optional; only for FiveAM tests)
 
 ### Steps
 
 1. Install SBCL
-2. Install Quicklisp
+2. Optionally install Quicklisp for the FiveAM test suite
 3. Setup project structure
-4. Install graph libraries and utilities
 
 ### Sources
 
@@ -233,13 +232,8 @@ Represent reasoning traces as graphs.
 
 ### Reuse
 
-Graph utilities via Quicklisp:
-
-```
-cl-graph
-```
-
-or similar Lisp graph libraries.
+The graph layer uses its own in-repository graph representation and has no
+runtime Quicklisp dependency.
 
 ### Key Tasks
 

@@ -57,12 +57,13 @@ Language/runtime:
 
 Build/system manager:
 - ASDF
-- Quicklisp
+- Quicklisp (optional; only required for the FiveAM test suite)
 
-Declared dependencies in jarvis.asd:
-- cl-graph
-- alexandria
-- cl-ppcre
+Runtime dependencies:
+- None beyond SBCL and ASDF
+
+Test dependency:
+- FiveAM via Quicklisp
 
 Project entry files:
 - [jarvis.asd](jarvis.asd)
@@ -133,7 +134,6 @@ See full command behavior in [docs/cli-commands-report.md](docs/cli-commands-rep
 
 Install:
 - SBCL: https://www.sbcl.org
-- Quicklisp: https://www.quicklisp.org/beta/
 
 ### 2. Clone
 
@@ -142,19 +142,19 @@ git clone <your-repo-url>
 cd jarvis
 ```
 
-### 3. Install Lisp dependencies via Quicklisp
+### 3. Optional: install test dependencies
 
-In SBCL:
+Quicklisp is only needed to run the FiveAM tests. If Quicklisp is installed, load
+FiveAM in SBCL with:
 
 ```lisp
-(ql:quickload '("cl-graph" "alexandria" "cl-ppcre"))
+(ql:quickload :fiveam)
 ```
 
 ### 4. Configure project path for ASDF
 
-Important: [load-system.lisp](load-system.lisp), [run.lisp](run.lisp), and [run-cli.lisp](run-cli.lisp) currently include a machine-specific absolute project path.
-
-From a fresh clone, update that path in each file to your local clone path, or replace it with your preferred portable ASDF registration approach.
+The entry scripts register the project relative to their own location, so no
+machine-specific path update is required.
 
 ### 5. Run options
 

@@ -1,7 +1,7 @@
 (asdf:defsystem "jarvis"
   :description "Symbolic AI reasoning system with knowledge representation, inference, and abstraction."
   :version "0.1.0"
-  :depends-on ("cl-graph" "alexandria" "cl-ppcre")
+  :depends-on ()
   :serial t   ; each component is compiled/loaded in the order listed below
   :components
   (;; Layer 1 — Knowledge Representation
