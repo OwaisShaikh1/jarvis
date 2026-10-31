@@ -118,6 +118,18 @@
             (format t "[plot] ~A~%" path))
         (error (condition) (format t "[plot] ~A~%" condition)))))
 
+(defun %export (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 4)
+      (format t "[export] Usage: export <trajectory-id> json|csv <path>~%")
+      (handler-case
+          (let ((id (intern (string-upcase (second tokens))
+                            :jarvis.plane.sim)))
+            (jarvis.plane.export:export-trajectory id (third tokens)
+                                                   (fourth tokens))
+            (format t "[export] ~A~%" (fourth tokens)))
+        (error (condition) (format t "[export] ~A~%" condition)))))
+
 (defun %algebra-backend (tokens line)
   (declare (ignore line))
   (if (< (length tokens) 2)
@@ -163,6 +175,8 @@
                                 "Fit unknown entity parameters.")
   (jarvis.cli:register-command "plot" #'%plot
                                 "Write a trajectory SVG or ASCII plot.")
+  (jarvis.cli:register-command "export" #'%export
+                                "Export a trajectory as JSON or CSV.")
   (jarvis.cli:register-command "algebra-backend" #'%algebra-backend
                                 "Select native, Maxima, or cross-check algebra.")
   (jarvis.cli:register-command "enable-law"

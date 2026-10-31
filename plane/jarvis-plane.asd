@@ -17,4 +17,5 @@
                (:file "laws")
                (:file "infer")
                (:file "svg")
+               (:file "export")
                (:file "cli")))

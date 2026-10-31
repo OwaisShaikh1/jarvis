@@ -60,6 +60,10 @@
   (:use :cl)
   (:export #:write-svg #:plot-ascii))
 
+(defpackage :jarvis.plane.export
+  (:use :cl)
+  (:export #:write-json #:write-csv #:export-trajectory))
+
 (defpackage :jarvis.plane.cli
   (:use :cl)
   (:export #:register-plane-commands))

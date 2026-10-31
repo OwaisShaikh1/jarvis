@@ -219,6 +219,23 @@ ships `:ballistic`, `:spring-1d`, and `:incline-slide` models:
 (jarvis.plane.sim:simulate 'ball :ballistic 2d0)
 ```
 
+The plane CLI also supports deterministic visualization and data export:
+
+```text
+plane-new
+add-entity ball particle mass=1 v0=10 angle=0.7853981634
+simulate ball ballistic 1 0.05
+plot TRAJ-1 trajectory.svg
+export TRAJ-1 json trajectory.json
+export TRAJ-1 csv trajectory.csv
+```
+
+SVG output contains axes, five labeled ticks per axis, the trajectory,
+apex/impact markers and labels, and sampled velocity arrows. JSON contains
+trajectory metadata, every state sample, and summary values. CSV uses the
+stable `t,x,y,vx,vy` header; two-state models leave the velocity columns
+empty.
+
 Physics laws can be evaluated from a keyword-value property list and enabled
 for batch evaluation:
 
