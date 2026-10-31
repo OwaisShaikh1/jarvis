@@ -25,6 +25,15 @@
            (jarvis.plane.sim:trajectory-summaries trajectory))))
 
 (assert (= (length (jarvis.plane.laws:laws)) 18))
+(assert (< (abs (- (jarvis.plane.laws:evaluate-law
+                    'spring-period '(:mass 2d0 :k 50d0))
+                   1.2566370614359172d0))
+           1d-12))
+(assert (< (abs (- (jarvis.plane.laws:evaluate-law
+                    'projectile-range
+                    '(:v0 10d0 :angle 0.7853981633974483d0 :g 9.81d0))
+                   10.19367991845056d0))
+           1d-10))
 (jarvis.plane.laws:enable-law 'spring-period)
 (assert (jarvis.plane.laws:law-enabled-p
          (jarvis.plane.laws:law 'spring-period)))

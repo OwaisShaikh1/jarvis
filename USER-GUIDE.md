@@ -8,6 +8,10 @@ This guide covers the currently implemented runtime, CLI, persistence, and
 inference features. The abstraction, macro, optimizer, pruning, and
 meta-controller layers are scaffolded but are not yet implemented.
 
+The separate `jarvis-plane` system now also provides units, coordinate frames,
+native algebra, numerical integration/solvers, registered simulation models,
+and executable physics-law formulas.
+
 ## Requirements
 
 - [SBCL](https://www.sbcl.org/)
@@ -196,6 +200,39 @@ The public API can be used without the interactive CLI:
 `jarvis.engine:infer` is the centralized path that combines inference,
 trace recording, and truth-maintenance justifications. It accepts `:goal`,
 `:max-cycles`, `:rules`, and `:quiet` keyword arguments.
+
+## Plane Numerical and Physics API
+
+Load the plane system from the repository root:
+
+```lisp
+(load "load-system.lisp")
+(load "plane/jarvis-plane.asd")
+(asdf:load-system :jarvis-plane)
+```
+
+Numerical methods include `jarvis.plane.numerics:rk4`,
+`rk45`, `newton-solve`, and `levenberg-marquardt`. The simulation registry
+ships `:ballistic`, `:spring-1d`, and `:incline-slide` models:
+
+```lisp
+(jarvis.plane.sim:simulate 'ball :ballistic 2d0)
+```
+
+Physics laws can be evaluated from a keyword-value property list and enabled
+for batch evaluation:
+
+```lisp
+(jarvis.plane.laws:evaluate-law
+ 'jarvis.plane.laws::spring-period '(:mass 2d0 :k 50d0))
+;; => approximately 1.2566370614
+
+(jarvis.plane.laws:enable-law 'jarvis.plane.laws::projectile-range)
+(jarvis.plane.laws:apply-enabled-laws
+ '(:v0 10d0 :angle 0.7853981634d0 :g 9.81d0))
+```
+
+The plane CLI commands and full fact-backed law inference remain planned work.
 
 ## Matching and Unification
 
