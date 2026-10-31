@@ -189,10 +189,12 @@
 
 (defun agenda-push (agenda rule bindings)
   "Insert (RULE . BINDINGS) into AGENDA, maintaining descending priority order."
-  (push (cons rule bindings) (agenda-items agenda))
-  ;; Re-sort after every push.  A heap would be O(log n) but this is simpler.
   (setf (agenda-items agenda)
-        (sort (agenda-items agenda)
+        (append (agenda-items agenda)
+                (list (cons rule bindings))))
+  ;; Stable sorting preserves deterministic insertion order for equal priorities.
+  (setf (agenda-items agenda)
+        (stable-sort (agenda-items agenda)
               #'> :key (lambda (item) (jarvis.knowledge:rule-priority (car item))))))
 
 (defun agenda-pop (agenda)

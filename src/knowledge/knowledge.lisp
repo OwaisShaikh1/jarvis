@@ -236,6 +236,15 @@
   (clrhash *predicate-rule-index*)
   (values))
 
+(defun id-number (id)
+  "Return the numeric suffix of an identifier, or -1 when absent."
+  (let ((dash (position #\- (symbol-name id) :from-end t)))
+    (if dash
+        (or (parse-integer (subseq (symbol-name id) (1+ dash))
+                           :junk-allowed t)
+            -1)
+        -1)))
+
 
 ;;; ---------------------------------------------------------------------------
 ;;; Section 6 — Fact storage and retrieval
@@ -282,15 +291,18 @@
    If PREDICATE is supplied, only facts with that predicate are returned.
    If NEGATIVE-P is NIL or T, filter by fact polarity as well.
    If NEGATIVE-P is :ANY, return both positive and negative facts."
-  (if predicate
-      ;; Use the index for O(k) lookup instead of scanning all facts.
-      (remove-if-not (lambda (fact)
-           (or (eq negative-p :any)
-         (eq (fact-negative-p fact) negative-p)))
-         (mapcar (lambda (id) (gethash id *fact-db*))
-           (gethash predicate *predicate-fact-index* nil)))
-      ;; No filter — return everything.
-      (loop for fact being the hash-values of *fact-db* collect fact)))
+  (sort
+   (if predicate
+       ;; Use the index for O(k) lookup instead of scanning all facts.
+       (remove-if-not (lambda (fact)
+                       (or (eq negative-p :any)
+                           (eq (fact-negative-p fact) negative-p)))
+                      (mapcar (lambda (id) (gethash id *fact-db*))
+                              (gethash predicate *predicate-fact-index* nil)))
+       ;; No filter — return everything.
+       (loop for fact being the hash-values of *fact-db* collect fact))
+   #'<
+   :key (lambda (fact) (id-number (fact-id fact)))))
 
 (defun all-facts ()
   "Return a list of all FACT structs currently in *FACT-DB*."
@@ -334,8 +346,13 @@
                  (mapcar (lambda (id) (gethash id *rule-db*))
                          (gethash predicate *predicate-rule-index* nil))
                  (loop for r being the hash-values of *rule-db* collect r))))
-    ;; Sort so that high-priority rules (principles) fire before general rules.
-    (sort (copy-list raw) #'> :key #'rule-priority)))
+    ;; Sort so that high-priority rules fire first and IDs break ties.
+    (stable-sort (copy-list raw)
+                 (lambda (left right)
+                   (or (> (rule-priority left) (rule-priority right))
+                       (and (= (rule-priority left) (rule-priority right))
+                            (< (id-number (rule-id left))
+                               (id-number (rule-id right)))))))))
 
 (defun all-rules ()
   "Return all rules sorted by descending priority."
