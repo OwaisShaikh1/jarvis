@@ -1,0 +1,10 @@
+﻿
+Jarvis system loaded. Call (load (merge-pathnames "main.lisp" cl-user::*jarvis-root*)) then (main) to run the demo.
+[add-fact] Added FACT-1: ALIVE(PLATO)
+[add-rule] Added RULE-2 (ALIVE-IMPLIES-!DEAD): ((ALIVE ?X)) => !DEAD(?X)
+[trace] Session SESSION-1 started. 1 facts in start-state.
+[trace] Session SESSION-1 closed. 1 steps, max depth 1.
+[infer] Derived 1 new fact(s). Trace steps this session: 1
+[facts] 2 fact(s):
+  FACT-1  ALIVE(PLATO)
+  FACT-3  !DEAD(PLATO)  derived=T

@@ -1,0 +1,69 @@
+﻿
+Jarvis system loaded. Call (load (merge-pathnames "main.lisp" cl-user::*jarvis-root*)) then (main) to run the demo.
+
+Jarvis system loaded. Call (load (merge-pathnames "main.lisp" cl-user::*jarvis-root*)) then (main) to run the demo.
+=== Testing Root-Cause Contradiction Tracing ===
+
+sbcl.exe : 
+At line:2 char:822
++ ... + $run[0]); & sbcl --noinform --non-interactive @($run[1]) 2>&1 | Out ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+; file: C:/Users/OWAIS/MyStuff/Projects/AAAA My projects/AI/jarvis/.tmp-root-cause-test.lisp
+; in:
+;      LET* ((FACT1
+;         (JARVIS.KNOWLEDGE:STORE-FACT
+;          (JARVIS.KNOWLEDGE:MAKE-FACT '(HUMAN HARSH))))
+;        (FACT2
+;         (JARVIS.KNOWLEDGE:STORE-FACT
+;          (JARVIS.KNOWLEDGE:MAKE-FACT '(!MORTAL HARSH))))
+;        (RULE1
+;         (JARVIS.KNOWLEDGE:STORE-RULE
+;          (JARVIS.KNOWLEDGE:MAKE-RULE 'HUMAN-IMPLIES-MORTAL '(#) '(MORTAL ?X)))))
+;     (RULE1
+;      (JARVIS.KNOWLEDGE:STORE-RULE
+;       (JARVIS.KNOWLEDGE:MAKE-RULE 'HUMAN-IMPLIES-MORTAL '((HUMAN ?X))
+;                                   '(MORTAL ?X))))
+; 
+; caught STYLE-WARNING:
+;   The variable RULE1 is defined but never used.
+; 
+; compilation unit finished
+;   caught 1 STYLE-WARNING condition
+[setup] Added: FACT-1 (human harsh)
+[setup] Added: FACT-2 (!mortal harsh)
+[setup] Added rule: human-implies-mortal
+
+[setup] Registered contradiction between FACT-1 and FACT-2
+[setup] Contradiction will be: human(harsh) vs !mortal(harsh)
+
+[step] Running inference to derive mortal(harsh)...
+
+[step] Now checking for contradictions...
+[step] Expected: show how mortal(harsh) was derived, and root cause options
+
+[TMS] ════════════════════════════════════════════════════════════
+[TMS] Contradiction detected: FACT-1 and FACT-2 cannot both be true
+[TMS] ════════════════════════════════════════════════════════════
+
+[proof] How FACT-1 was derived:
+[proof]   1. FACT-1: (HUMAN HARSH)()  [root assumption]
+
+[proof] How FACT-2 was derived:
+[proof]   1. FACT-2: (!MORTAL HARSH)()  [root assumption]
+
+
+[TMS] Root causes to resolve:
+
+[TMS] Option 1 — Retract root fact(s) that caused FACT-1:
+[TMS]   - retract FACT-1
+
+[TMS] Option 2 — Retract root fact(s) that caused FACT-2:
+[TMS]   - retract FACT-2
+
+[TMS] Use: retract <fact-id> to resolve
+
+[test] Complete. Note: mortal(harsh) is derived from human(harsh) via rule,
+[test] so retracting human(harsh) would cascade retract the derived mortal(harsh).

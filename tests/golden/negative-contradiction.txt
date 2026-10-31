@@ -1,0 +1,34 @@
+﻿
+Jarvis system loaded. Call (load (merge-pathnames "main.lisp" cl-user::*jarvis-root*)) then (main) to run the demo.
+[add-fact] Added FACT-1: ALIVE(PLATO)
+[add-fact] Added FACT-2: DEAD(PLATO)
+[add-rule] Added RULE-3 (ALIVE-IMPLIES-!DEAD): ((ALIVE ?X)) => !DEAD(?X)
+[trace] Session SESSION-1 started. 2 facts in start-state.
+[trace] Session SESSION-1 closed. 1 steps, max depth 1.
+[TMS] ════════════════════════════════════════════════════════════
+[TMS] Contradiction detected: FACT-2 and FACT-4 cannot both be true
+[TMS] ════════════════════════════════════════════════════════════
+
+[proof] How FACT-2 was derived:
+[proof]   1. FACT-2: DEAD(PLATO)  [root assumption]
+
+[proof] How FACT-4 was derived:
+[proof]   1. FACT-4: !DEAD(PLATO)  [from rule: RULE-3]
+[proof]   2. FACT-1: ALIVE(PLATO)  [root assumption]
+
+
+[TMS] Root causes to resolve:
+
+[TMS] Option 1 — Retract root fact(s) that caused FACT-2:
+[TMS]   - retract FACT-2
+
+[TMS] Option 2 — Retract root fact(s) that caused FACT-4:
+[TMS]   - retract FACT-1
+
+[TMS] Use: retract <fact-id> to resolve
+
+[infer] Derived 1 new fact(s). Trace steps this session: 1
+[facts] 3 fact(s):
+  FACT-1  ALIVE(PLATO)
+  FACT-2  DEAD(PLATO)
+  FACT-4  !DEAD(PLATO)  derived=T

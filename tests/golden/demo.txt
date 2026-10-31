@@ -1,0 +1,90 @@
+﻿
+###############################################
+##  JARVIS — Symbolic Reasoning Demo         ##
+##  Layers 1-5  |  Socratic syllogism        ##
+###############################################
+
+
+=== Phase 0: Reset ===
+[reset] All databases cleared.
+
+
+=== Phase 1: Knowledge Representation (Layer 1) ===
+[KB] Asserted: human(socrates)  id=FACT-1
+[KB] Asserted: human(plato)     id=FACT-2
+[KB] Rule RULE-3: ((HUMAN ?X))  =>  (MORTAL ?X)
+[KB] Rule RULE-4: ((MORTAL ?X))  =>  (FINITE-LIFE ?X)
+[KB] Databases: 2 facts, 2 rules.
+
+
+=== Phase 2: Inference Engine (Layer 2) ===
+[trace] Session SESSION-1 started. 2 facts in start-state.
+[inference] Derived 4 new fact(s):
+  FACT-8  (FINITE-LIFE  PLATO)  derived=T
+  FACT-7  (FINITE-LIFE  SOCRATES)  derived=T
+  FACT-6  (MORTAL  PLATO)  derived=T
+  FACT-5  (MORTAL  SOCRATES)  derived=T
+[trace] Session SESSION-1 closed. 4 steps, max depth 2.
+
+
+=== Phase 3: Truth Maintenance System (Layer 3) — Recording justifications ===
+[TMS] Justified FACT-5  ←  rule-RULE-3  ←  (FACT-1)
+[TMS] Justified FACT-6  ←  rule-RULE-3  ←  (FACT-2)
+[TMS] Justified FACT-7  ←  rule-RULE-4  ←  (FACT-5)
+[TMS] Justified FACT-8  ←  rule-RULE-4  ←  (FACT-6)
+
+
+=== Phase 4: Trace Recorder (Layer 4) — Replay ===
+[trace] Session:        SESSION-1
+[trace] Start-state:    2 fact(s)
+[trace] End-state:      6 fact(s)
+[trace] Steps recorded: 4  |  Max depth: 2
+
+  Step-by-step derivation:
+  [1] Rule RULE-3  inputs=(FACT-1)  output=FACT-5  depth=1
+  [2] Rule RULE-3  inputs=(FACT-2)  output=FACT-6  depth=1
+  [3] Rule RULE-4  inputs=(FACT-5)  output=FACT-7  depth=2
+  [4] Rule RULE-4  inputs=(FACT-6)  output=FACT-8  depth=2
+
+
+=== Phase 5: Graph Representation (Layer 5) ===
+[graph] id=SESSION-1  nodes=8  edges=8  depth=4
+  Root nodes (base assumptions):
+    [FACT] human(socrates)
+    [FACT] human(plato)
+  Leaf nodes (final conclusions):
+    [FACT] finite-life(socrates)
+    [FACT] finite-life(plato)
+  Edges (from → relation → to):
+    [rule] mortal-implies-finite-life  --[PRODUCES]-->  finite-life(plato)
+    mortal(plato)  --[INPUT-OF]-->  [rule] mortal-implies-finite-life
+    [rule] mortal-implies-finite-life  --[PRODUCES]-->  finite-life(socrates)
+    mortal(socrates)  --[INPUT-OF]-->  [rule] mortal-implies-finite-life
+    [rule] human-implies-mortal  --[PRODUCES]-->  mortal(plato)
+    human(plato)  --[INPUT-OF]-->  [rule] human-implies-mortal
+    [rule] human-implies-mortal  --[PRODUCES]-->  mortal(socrates)
+    human(socrates)  --[INPUT-OF]-->  [rule] human-implies-mortal
+
+
+=== Phase 3 (continued): TMS Retraction Cascade ===
+[TMS] Facts before retraction: 6
+[TMS] Retracting FACT-1 (human(socrates))...
+[TMS] Facts after  retraction: 3
+[TMS] Remaining facts:
+  FACT-2  HUMAN(PLATO)
+  FACT-6  MORTAL(PLATO)
+  FACT-8  FINITE-LIFE(PLATO)
+
+
+=== Summary ===
+  Facts remaining in DB : 3
+  Rules in DB           : 2
+  Completed traces      : 1
+
+Next layers to implement:
+  Layer 6  — Abstraction Engine  (common-subgraph mining)
+  Layer 7  — Macro Formation     (pattern compression)
+  Layer 8  — Principle Optimiser (score + weight rules)
+  Layer 9  — Memory Pruning      (LRU + importance decay)
+  Layer 10 — Meta-Controller     (goal selection + reflection)
+
