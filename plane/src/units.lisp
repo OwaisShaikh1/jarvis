@@ -1,0 +1,70 @@
+(in-package :jarvis.plane.units)
+
+(defstruct quantity value dimension)
+
+(defparameter *base-units*
+  '(("m" 1d0 (1 0 0 0 0)) ("km" 1000d0 (1 0 0 0 0))
+    ("cm" 0.01d0 (1 0 0 0 0)) ("mm" 0.001d0 (1 0 0 0 0))
+    ("kg" 1d0 (0 1 0 0 0)) ("g" 0.001d0 (0 1 0 0 0))
+    ("s" 1d0 (0 0 1 0 0)) ("ms" 0.001d0 (0 0 1 0 0))
+    ("min" 60d0 (0 0 1 0 0)) ("h" 3600d0 (0 0 1 0 0))
+    ("rad" 1d0 (0 0 0 0 0)) ("deg" 0.017453292519943295d0 (0 0 0 0 0))
+    ("K" 1d0 (0 0 0 0 1)) ("A" 1d0 (0 0 0 1 0))))
+
+(defun dim* (a b) (mapcar #'+ a b))
+(defun dim/ (a b) (mapcar #'- a b))
+(defun dim-expt (a n) (mapcar (lambda (x) (* x n)) a))
+(defun dim= (a b) (equal a b))
+
+(defun unit-info (name)
+  (let ((entry (assoc name *base-units* :test #'string=)))
+    (or entry
+        (case (intern (string-upcase name) :keyword)
+          (:N (list name 1d0 '(1 1 -2 0 0)))
+          (:J (list name 1d0 '(2 1 -2 0 0)))
+          (:W (list name 1d0 '(2 1 -3 0 0)))
+          (:PA (list name 1d0 '(-1 1 -2 0 0)))
+          (:HZ (list name 1d0 '(0 0 -1 0 0)))
+          (otherwise (error "Unknown unit ~A" name))))))
+
+(defun split-unit (text)
+  (let ((parts nil) (start 0) (op '*))
+    (labels ((emit (end)
+               (when (> end start)
+                 (push (list op (subseq text start end)) parts))))
+      (loop for i from 0 below (length text)
+            for ch = (char text i)
+            do (cond ((char= ch #\*) (emit i) (setf start (1+ i) op '*))
+                     ((char= ch #\/) (emit i) (setf start (1+ i) op '/))))
+      (emit (length text)))
+    (nreverse parts)))
+
+(defun parse-factor (token)
+  (let ((caret (position #\^ token)))
+    (if caret
+        (values (subseq token 0 caret)
+                (parse-integer (subseq token (1+ caret))))
+        (values token 1))))
+
+(defun parse-quantity (text)
+  (let* ((space (position-if (lambda (ch) (member ch '(#\Space #\Tab))) text))
+         (number (let ((*read-default-float-format* 'double-float))
+                   (read-from-string (subseq text 0 space))))
+         (unit-text (string-trim '(#\Space #\Tab) (subseq text (1+ space))))
+         (value (coerce number 'double-float))
+         (dimension '(0 0 0 0 0)))
+    (dolist (part (split-unit unit-text))
+      (multiple-value-bind (name exponent) (parse-factor (second part))
+        (let ((info (unit-info name)))
+          (setf value (if (eq (first part) '*) (* value (expt (second info) exponent))
+                          (/ value (expt (second info) exponent))))
+          (setf dimension
+                (if (eq (first part) '*)
+                    (dim* dimension (dim-expt (third info) exponent))
+                    (dim/ dimension (dim-expt (third info) exponent)))))))
+    (values value dimension)))
+
+(defun format-quantity (value dimension &optional unit)
+  (if unit
+      (format nil "~A ~A" value unit)
+      (format nil "~A [~{~A~^ ~}]" value dimension)))

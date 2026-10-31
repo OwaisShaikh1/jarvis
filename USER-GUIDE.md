@@ -306,6 +306,15 @@ Implemented:
 - Interactive CLI explanations and proofs
 - Derivation trace and graph output
 
+Implemented plane foundation:
+
+- Separate `jarvis-plane` ASDF system
+- Numeric matching policies and term-equality hook installation
+- SI unit parsing and five-component dimensions
+- Whitelisted expression evaluation and dimensional analysis
+- Coordinate frames with world/local transforms
+- Plane primitives, entity registry, parameter kinds, and bounds
+
 Not yet implemented:
 
 - Multiple justifications per derived fact
@@ -314,6 +323,8 @@ Not yet implemented:
 - Full restricted-inference policy surface
 - Derivation event records
 - Scratch knowledge bases
-- Plane-specific math and physics features
+- Symbolic algebra backends
+- RK4/RK45, Newton, and Levenberg–Marquardt numerics
+- Projectile, spring, and incline simulation/laws
 - Abstraction, macro formation, principle optimization, memory pruning, and
   meta-controller layers
