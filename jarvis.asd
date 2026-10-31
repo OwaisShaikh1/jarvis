@@ -35,6 +35,11 @@
     :components ((:file "package")
                  (:file "graph")))
 
+   (:module "src/engine"
+    :serial t
+    :components ((:file "package")
+                 (:file "engine")))
+
    ;; CLI compatibility layer.
    (:module "src/cli"
     :serial t

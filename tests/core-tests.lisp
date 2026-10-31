@@ -126,7 +126,7 @@
                  (jarvis.knowledge:make-fact 'human 'a))))
       (jarvis.knowledge:store-rule
        (jarvis.knowledge:make-rule 'mortal '((human ?x)) '(mortal ?x)))
-      (jarvis.inference:run-inference)
+      (jarvis.engine:infer :quiet t)
       (let ((derived (find-fact 'mortal 'a)))
         (is derived)
         (is (jarvis.truth-maintenance:justification-for

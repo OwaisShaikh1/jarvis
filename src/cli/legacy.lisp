@@ -737,21 +737,15 @@
 
 (defun run-inference-with-trace-and-tms (&key (max-cycles 1000))
         "Run inference, record trace, and add TMS justifications for new steps."
-        (let ((session-id (jarvis.trace:begin-trace-session)))
-                (let ((derived (jarvis.inference:run-inference :max-cycles max-cycles)))
-                        (let ((completed-trace (jarvis.trace:end-trace-session session-id)))
-                                (dolist (step (jarvis.trace:trace-steps completed-trace))
-                                        (jarvis.truth-maintenance:add-justification
-                                         (jarvis.trace:trace-step-output-id step)
-                                         (jarvis.trace:trace-step-rule-id step)
-                                         (jarvis.trace:trace-step-input-ids step)))
-                                (register-opposite-polarity-contradictions)
-                                (jarvis.truth-maintenance:check-contradictions)
-                                (format t "[infer] Derived ~A new fact(s). Trace steps this session: ~A~%"
-                                                                (length derived)
-                                                                (jarvis.trace:trace-step-count completed-trace))
-                                (save-persistent-state)
-                                derived))))
+        (multiple-value-bind (derived completed-trace)
+            (jarvis.engine:infer :max-cycles max-cycles)
+          (register-opposite-polarity-contradictions)
+          (jarvis.truth-maintenance:check-contradictions)
+          (format t "[infer] Derived ~A new fact(s). Trace steps this session: ~A~%"
+                  (length derived)
+                  (jarvis.trace:trace-step-count completed-trace))
+          (save-persistent-state)
+          derived))
 
 (defun print-cli-help ()
         "Print all available CLI commands." 

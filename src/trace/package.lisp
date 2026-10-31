@@ -38,6 +38,7 @@
    #:trace-steps           ; trace → list of trace-steps
    #:trace-depth           ; trace → integer
    #:trace-step-count      ; trace → integer
+   #:inputs-from-bindings
 
    ;; ── Session control ──────────────────────────────────────────────────────
    #:begin-trace-session   ; () → session-id   — start recording

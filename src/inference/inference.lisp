@@ -205,11 +205,11 @@
   "Return T if there are no pending rule instantiations."
   (null (agenda-items agenda)))
 
-(defun rebuild-agenda (agenda)
+(defun rebuild-agenda (agenda &optional rules)
   "Clear AGENDA and re-populate it by matching all rules against current facts.
    Called at the start of each inference cycle to pick up newly derived facts."
   (setf (agenda-items agenda) nil)
-  (dolist (rule (jarvis.knowledge:all-rules))
+  (dolist (rule (or rules (jarvis.knowledge:all-rules)))
     ;; Try to satisfy all conditions of this rule.
     (dolist (bindings (match-conditions (jarvis.knowledge:rule-conditions rule)
                                         +no-bindings+))
@@ -272,7 +272,7 @@
 ;;; Section 7 — Main inference loop
 ;;; ---------------------------------------------------------------------------
 
-(defun run-inference (&key goal (max-cycles 1000))
+(defun run-inference (&key goal (max-cycles 1000) rules)
   "Execute forward-chaining inference until one of three stopping conditions:
      1. The AGENDA is empty (no more applicable rules).
      2. GOAL is satisfied: GOAL is a ground fact list (predicate arg...) and
@@ -299,7 +299,7 @@
 
       ;; Rebuild agenda from all current facts each cycle.
       ;; This is O(rules × facts-per-predicate) but keeps the design simple.
-      (rebuild-agenda agenda)
+      (rebuild-agenda agenda rules)
 
       ;; If nothing is applicable we are done.
       (when (agenda-empty-p agenda)
