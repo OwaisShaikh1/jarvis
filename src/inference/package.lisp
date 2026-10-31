@@ -30,12 +30,12 @@
    #:rebuild-agenda     ; (agenda) → void  — re-scan all rules vs current facts
 
    ;; ── Rule firing ──────────────────────────────────────────────────────────
-   #:fire-rule          ; (rule bindings) → fact  — create & store derived fact
+   #:fire-rule          ; (rule bindings) → (values fact new-p)
    #:run-inference      ; (&key goal max-cycles) → list of new facts
    ;;   goal: optional (predicate &rest args) pattern; stops when matched.
    ;;   max-cycles: safety cap to prevent infinite loops.
 
    ;; ── Event callbacks (used by Trace Recorder) ─────────────────────────────
-   #:*on-rule-fired*    ; parameter: (rule bindings new-fact) → void
+   #:*on-rule-fired*    ; parameter: (rule bindings new-fact new-p) → void
    #:*on-cycle-end*     ; parameter: (cycle-number agenda-size) → void
    ))

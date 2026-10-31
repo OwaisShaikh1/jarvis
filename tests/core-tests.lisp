@@ -133,7 +133,7 @@
              (jarvis.knowledge:fact-id derived)))
         (is root)))))
 
-(test p6-no-rereporting (:expected-failure "P6: inference re-reports facts")
+(test p6-no-rereporting
   (with-clean-kb
     (jarvis.knowledge:store-fact
      (jarvis.knowledge:make-fact 'human 'a))

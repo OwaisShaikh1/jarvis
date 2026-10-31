@@ -222,7 +222,7 @@
 
 (defun fire-rule (rule bindings)
   "Instantiate RULE's conclusion under BINDINGS and store the resulting fact.
-   Returns the newly derived FACT struct.
+   Returns the stored FACT and whether this invocation created it.
    The fact's DERIVED-P flag is set to T so the TMS knows it was inferred."
   ;; Substitute variables in the conclusion template with bound values.
   (let* ((conclusion-template (jarvis.knowledge:rule-conclusion rule))
@@ -240,7 +240,8 @@
       ;; Increment the rule's usage counter.
       (incf (jarvis.knowledge:rule-usage-count rule))
       ;; Store (returns existing if duplicate).
-      (jarvis.knowledge:store-fact new-fact))))
+      (let ((stored (jarvis.knowledge:store-fact new-fact)))
+        (values stored (eq stored new-fact))))))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -258,7 +259,7 @@
 ;;; ---------------------------------------------------------------------------
 
 (defparameter *on-rule-fired* nil
-  "Optional callback: (lambda (rule bindings new-fact) ...).
+  "Optional callback: (lambda (rule bindings new-fact new-p) ...).
    Called immediately after a rule fires and its conclusion is stored.
    Install a function here to observe every derivation step (e.g., trace recording).")
 
@@ -312,15 +313,17 @@
               for fired-key = (cons (jarvis.knowledge:rule-id rule)
                                     (format nil "~S" bindings))
               unless (gethash fired-key fired-set)
-                do (let ((new-fact (fire-rule rule bindings)))
+                do (multiple-value-bind (new-fact new-p)
+                       (fire-rule rule bindings)
                      ;; Mark as fired to prevent re-triggering.
                      (setf (gethash fired-key fired-set) t)
                      (incf fired-this-cycle)
-                     ;; Collect the derived fact.
-                     (push new-fact new-facts)
+                     ;; Collect only facts created by this invocation.
+                     (when new-p
+                       (push new-fact new-facts))
                      ;; Notify subscribers (e.g., the Trace Recorder).
                      (when *on-rule-fired*
-                       (funcall *on-rule-fired* rule bindings new-fact))))
+                       (funcall *on-rule-fired* rule bindings new-fact new-p))))
 
         ;; If every agenda item was already seen, inference has converged.
         (when (zerop fired-this-cycle)

@@ -113,7 +113,7 @@
 ;;;
 ;;; The *ON-RULE-FIRED* hook is called by the inference engine immediately
 ;;; after a rule fires.  Its signature is:
-;;;   (lambda (rule bindings new-fact) ...)
+;;;   (lambda (rule bindings new-fact new-p) ...)
 ;;;
 ;;; We use the BINDINGS to reconstruct the exact set of facts that matched
 ;;; the rule conditions — each condition is grounded by substituting the
@@ -148,8 +148,8 @@
 (defun make-step-recorder ()
   "Return a closure for jarvis.inference:*ON-RULE-FIRED*.
    Records each rule firing as a TRACE-STEP in the active session."
-  (lambda (rule bindings new-fact)
-    (when *active-session*
+  (lambda (rule bindings new-fact &optional new-p)
+    (when (and *active-session* new-p)
       ;; Precise input tracking: only the facts that matched this rule's
       ;; specific conditions under these bindings.
       (let* ((input-ids  (inputs-from-bindings rule bindings))
