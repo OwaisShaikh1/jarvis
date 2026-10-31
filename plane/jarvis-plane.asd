@@ -9,4 +9,5 @@
                (:file "expr")
                (:file "model")
                (:file "algebra-protocol")
-               (:file "algebra-native")))
+               (:file "algebra-native")
+               (:file "numerics")))

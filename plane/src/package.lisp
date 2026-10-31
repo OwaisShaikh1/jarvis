@@ -29,3 +29,8 @@
            #:alg-evaluate #:alg-capabilities #:to-canonical
            #:native-backend #:*algebra-backend* #:with-backend
            #:cannot-solve #:backend-unavailable))
+
+(defpackage :jarvis.plane.numerics
+  (:use :cl)
+  (:export #:rk4 #:rk45 #:event #:make-event
+           #:newton-solve #:levenberg-marquardt))
