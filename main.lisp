@@ -450,24 +450,32 @@
                 (ensure-persistence-paths)
                 (when (probe-file *facts-file*)
                         (with-open-file (in *facts-file* :direction :input)
-                                (loop for record = (read in nil :eof)
-                                          until (eq record :eof)
-                                          do (jarvis.knowledge:store-fact (record->fact record)))))
+                                (let ((*read-eval* nil)
+                                      ;; Persisted records are interpreted as CL-USER data.
+                                      (*package* (find-package :cl-user))
+                                      (*read-default-float-format* 'double-float))
+                                  (loop for record = (read in nil :eof)
+                                            until (eq record :eof)
+                                            do (jarvis.knowledge:store-fact (record->fact record))))))
                 (when (probe-file *rules-file*)
                         (with-open-file (in *rules-file* :direction :input)
-                                (loop for record = (read in nil :eof)
-                                          until (eq record :eof)
-                                          do (let* ((rule (record->rule record))
-                                                                (exists (find-if (lambda (r)
-                                                                                                    (same-rule-signature-p
-                                                                                                     r
-                                                                                                     (jarvis.knowledge:rule-name rule)
-                                                                                                     (jarvis.knowledge:rule-conditions rule)
-                                                                                                     (jarvis.knowledge:rule-conclusion rule)
-                                                                                                     (jarvis.knowledge:rule-negative-p rule)))
-                                                                                  (jarvis.knowledge:all-rules))))
-                                                   (unless exists
-                                                           (jarvis.knowledge:store-rule rule))))))
+                                (let ((*read-eval* nil)
+                                      ;; Persisted records are interpreted as CL-USER data.
+                                      (*package* (find-package :cl-user))
+                                      (*read-default-float-format* 'double-float))
+                                  (loop for record = (read in nil :eof)
+                                            until (eq record :eof)
+                                            do (let* ((rule (record->rule record))
+                                                                  (exists (find-if (lambda (r)
+                                                                                                      (same-rule-signature-p
+                                                                                                       r
+                                                                                                       (jarvis.knowledge:rule-name rule)
+                                                                                                       (jarvis.knowledge:rule-conditions rule)
+                                                                                                       (jarvis.knowledge:rule-conclusion rule)
+                                                                                                       (jarvis.knowledge:rule-negative-p rule)))
+                                                                                    (jarvis.knowledge:all-rules))))
+                                                     (unless exists
+                                                             (jarvis.knowledge:store-rule rule)))))))
                 (setf *persistence-loaded-p* t))
         (values))
 
@@ -789,9 +797,13 @@
 (defun parse-one-form (text &optional (start 0))
         "Read one Lisp form from TEXT at START, returning (values form next-pos err)."
         (handler-case
-                        (multiple-value-bind (form next-pos)
-                                        (read-from-string text nil :eof :start start)
-                                (values form next-pos nil))
+                        (let ((*read-eval* nil)
+                              ;; User input and persisted data use CL-USER symbols.
+                              (*package* (find-package :cl-user))
+                              (*read-default-float-format* 'double-float))
+                          (multiple-value-bind (form next-pos)
+                                          (read-from-string text nil :eof :start start)
+                                  (values form next-pos nil)))
                 (error (e)
                         (values nil start e))))
 
@@ -1015,4 +1027,3 @@ Example: add-rule human-implies-mortal ((human ?x)) (mortal ?x)"
                                                                 (eq (jarvis-cli-handle-command line) :quit))
                                 (format t "[cli] Exiting Jarvis CLI.~%")
                                 (return)))))
-

@@ -163,3 +163,9 @@
 
 (test p9-empty-variable-name (:expected-failure "P9: empty symbol names signal")
   (is-false (jarvis.inference::variable-p (make-symbol ""))))
+
+(test reader-safety
+  (multiple-value-bind (form position error)
+      (cl-user::parse-one-form "#.(+ 1 2)")
+    (declare (ignore form position))
+    (is error)))
