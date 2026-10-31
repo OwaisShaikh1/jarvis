@@ -10,6 +10,8 @@
                (:file "model")
                (:file "algebra-protocol")
                (:file "algebra-native")
+               (:file "algebra-maxima")
+               (:file "algebra-crosscheck")
                (:file "numerics")
                (:file "sim")
                (:file "laws")

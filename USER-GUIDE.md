@@ -252,6 +252,18 @@ plot TRAJ-1 -
 Full fact-backed derivation metadata, uncertainty analysis, and sweeps remain
 planned work.
 
+The algebra backend can be selected at runtime:
+
+```text
+algebra-backend native
+algebra-backend maxima
+algebra-backend crosscheck
+```
+
+The native backend is always available. Maxima and cross-check mode report an
+explicit backend-unavailable error when the external `maxima` executable is
+not installed; they never silently claim an external result.
+
 ## Matching and Unification
 
 Rule variables are symbols beginning with `?`:

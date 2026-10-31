@@ -27,7 +27,9 @@
   (:use :cl)
   (:export #:alg-simplify #:alg-substitute #:alg-diff #:alg-solve
            #:alg-evaluate #:alg-capabilities #:to-canonical
-           #:native-backend #:*algebra-backend* #:with-backend
+           #:native-backend #:maxima-backend #:crosscheck-backend
+           #:make-maxima-backend #:make-crosscheck-backend
+           #:maxima-available-p #:*algebra-backend* #:with-backend
            #:cannot-solve #:backend-unavailable))
 
 (defpackage :jarvis.plane.numerics

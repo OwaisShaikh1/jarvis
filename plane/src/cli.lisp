@@ -118,6 +118,21 @@
             (format t "[plot] ~A~%" path))
         (error (condition) (format t "[plot] ~A~%" condition)))))
 
+(defun %algebra-backend (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 2)
+      (format t "[algebra-backend] Usage: algebra-backend native|maxima|crosscheck~%")
+      (handler-case
+          (let ((backend (intern (string-upcase (second tokens)) :keyword)))
+            (setf jarvis.plane.algebra:*algebra-backend*
+                  (case backend
+                    (:NATIVE (make-instance 'jarvis.plane.algebra:native-backend))
+                    (:MAXIMA (jarvis.plane.algebra:make-maxima-backend))
+                    (:CROSSCHECK (jarvis.plane.algebra:make-crosscheck-backend))
+                    (otherwise (error "Unknown backend ~A" (second tokens)))))
+            (format t "[algebra-backend] ~A~%" backend))
+        (error (condition) (format t "[algebra-backend] ~A~%" condition)))))
+
 (defun %enable-law (tokens line enabled)
   (declare (ignore line))
   (if (< (length tokens) 2)
@@ -148,6 +163,8 @@
                                 "Fit unknown entity parameters.")
   (jarvis.cli:register-command "plot" #'%plot
                                 "Write a trajectory SVG or ASCII plot.")
+  (jarvis.cli:register-command "algebra-backend" #'%algebra-backend
+                                "Select native, Maxima, or cross-check algebra.")
   (jarvis.cli:register-command "enable-law"
                                 (lambda (tokens line)
                                   (%enable-law tokens line t))
