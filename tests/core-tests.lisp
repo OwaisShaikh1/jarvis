@@ -80,6 +80,30 @@
     (jarvis.inference:run-inference)
     (is (find-fact 'matched 'b1))))
 
+(test numeric-term-equality-hook
+  (with-clean-kb
+    (let ((contexts nil)
+          (jarvis.knowledge:*term-equal-hook*
+            (lambda (left right)
+              (if (and (numberp left) (numberp right))
+                  (progn
+                    (push jarvis.knowledge:*match-context* contexts)
+                    (if (< (abs (- left right)) 0.01)
+                        :equal
+                        :unequal))
+                  nil))))
+      (jarvis.knowledge:store-fact
+       (jarvis.knowledge:make-fact 'mass 'b1 2))
+      (jarvis.knowledge:store-rule
+       (jarvis.knowledge:make-rule 'mass-match '((mass ?b 2.0))
+                                   '(matched ?b)))
+      (jarvis.inference:run-inference)
+      (is (find-fact 'matched 'b1))
+      (is (some (lambda (context)
+                  (and (eq (first context) 'mass)
+                       (= (second context) 1)))
+                contexts)))))
+
 (test p2-recursive-expression
   (with-clean-kb
     (jarvis.knowledge:store-fact

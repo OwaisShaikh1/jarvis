@@ -618,8 +618,9 @@
                                         (when (and (jarvis.knowledge:fact-negative-p negative)
                                                                  (eq (jarvis.knowledge:fact-predicate positive)
                                                                      (jarvis.knowledge:fact-predicate negative))
-                                                                 (equal (jarvis.knowledge:fact-args positive)
-                                                                        (jarvis.knowledge:fact-args negative)))
+                                                                 (jarvis.knowledge:args-equal
+                                                                  (jarvis.knowledge:fact-args positive)
+                                                                  (jarvis.knowledge:fact-args negative)))
                                                 (jarvis.truth-maintenance:register-contradiction
                                                  (jarvis.knowledge:fact-id positive)
                                                  (jarvis.knowledge:fact-id negative))))))))
@@ -891,7 +892,8 @@ Supports (predicate ...), (! predicate ...), (not predicate ...), and (!predicat
                                                          (if fact-err
                                                                          (format t "[add-fact] ~A~%" fact-err)
                                                                          (let* ((already (find-if (lambda (f)
-                                                                                                                             (and (equal (jarvis.knowledge:fact-args f) args)
+                                                                                                                             (and (jarvis.knowledge:args-identical
+                                                                                                                                   (jarvis.knowledge:fact-args f) args)
                                                                                                                                       (eq (jarvis.knowledge:fact-negative-p f) negative-p)))
                                                                                                                    (jarvis.knowledge:lookup-facts :predicate predicate :negative-p negative-p)))
                                                                                         (new-fact (apply #'jarvis.knowledge:make-fact predicate args))

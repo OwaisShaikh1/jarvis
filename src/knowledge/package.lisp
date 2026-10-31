@@ -22,6 +22,13 @@
    #:fact-derived-p     ; fact → boolean  (was this inferred, not asserted?)
    #:fact-usage-count   ; fact → integer
    #:fact-last-accessed ; fact → universal-time
+   #:*term-equal-hook*
+   #:*match-context*
+   #:*dedup-uses-policy*
+   #:term-equal
+   #:term-identical
+   #:args-equal
+   #:args-identical
 
    ;; ── Rule constructors / accessors ──────────────────────────────────────
    #:make-rule          ; (name conditions conclusion) → rule

@@ -35,6 +35,40 @@
 (defvar *id-counter* 0
   "Monotonically increasing counter used to mint unique object IDs.")
 
+(defvar *term-equal-hook* nil
+  "NIL or a function returning :EQUAL, :UNEQUAL, or NIL for no opinion.")
+
+(defvar *match-context* nil
+  "Current unification context: (predicate position pattern-args).")
+
+(defvar *dedup-uses-policy* nil
+  "When true, fact deduplication uses TERM-EQUAL instead of exact identity.")
+
+(defun term-equal (a b)
+  "Compare terms using the optional matching hook, recursively for lists."
+  (cond
+    ((and (consp a) (consp b))
+     (and (term-equal (car a) (car b))
+          (term-equal (cdr a) (cdr b))))
+    (t
+     (case (and *term-equal-hook* (funcall *term-equal-hook* a b))
+       (:equal t)
+       (:unequal nil)
+       (otherwise (equal a b))))))
+
+(defun term-identical (a b)
+  "Compare terms using exact structural identity."
+  (equal a b))
+
+(defun args-equal (left right)
+  "Compare argument lists using TERM-EQUAL."
+  (and (= (length left) (length right))
+       (every #'term-equal left right)))
+
+(defun args-identical (left right)
+  "Compare argument lists using exact structural identity."
+  (equal left right))
+
 (defun next-id (prefix)
   "Return a freshly interned symbol like FACT-42.
    PREFIX should be a string such as \"FACT\", \"RULE\", or \"PRINCIPLE\"."
@@ -257,7 +291,9 @@
    Returns the stored FACT (possibly the pre-existing one)."
   (let ((existing (find-if (lambda (f)
                              (and (eq (fact-predicate f) (fact-predicate fact))
-              (equal (fact-args f) (fact-args fact))
+              (if *dedup-uses-policy*
+                  (args-equal (fact-args f) (fact-args fact))
+                  (args-identical (fact-args f) (fact-args fact)))
               (eq (fact-negative-p f) (fact-negative-p fact))))
             (lookup-facts :predicate (fact-predicate fact)
                 :negative-p (fact-negative-p fact)))))
@@ -311,7 +347,7 @@
 (defun fact-exists-p (predicate &rest args)
   "Return T if *FACT-DB* contains a fact with the given PREDICATE and ARGS."
   (not (null (find-if (lambda (f) (and (not (fact-negative-p f))
-                                       (equal (fact-args f) args)))
+                                       (args-equal (fact-args f) args)))
                       (lookup-facts :predicate predicate :negative-p nil)))))
 
 (defun touch-fact (fact-id)

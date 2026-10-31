@@ -137,7 +137,8 @@
         for match = (find-if
                      (lambda (f)
                        (and (eq    (jarvis.knowledge:fact-predicate f) predicate)
-                            (equal (jarvis.knowledge:fact-args f)      args)))
+                            (jarvis.knowledge:args-equal
+                             (jarvis.knowledge:fact-args f) args)))
                      (jarvis.knowledge:lookup-facts :predicate predicate
                                                      :negative-p nil))
         ;; A match should always exist at this point — the inference engine

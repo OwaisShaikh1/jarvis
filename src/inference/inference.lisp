@@ -57,9 +57,13 @@
         (values (cdr cell) t)
         (values nil nil))))
 
-(defun term-equal (a b)
-  "Compare two terms using the core exact matching policy."
-  (equal a b))
+(defun terms-match-p (left right predicate position pattern-args)
+  "Compare two terms with the active knowledge-layer match context."
+  (if jarvis.knowledge:*term-equal-hook*
+      (let ((jarvis.knowledge:*match-context*
+              (list predicate position pattern-args)))
+        (jarvis.knowledge:term-equal left right))
+      (jarvis.knowledge:term-equal left right)))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -77,39 +81,37 @@
 ;;; Returns the (possibly extended) bindings on success, or NIL on failure.
 ;;; ---------------------------------------------------------------------------
 
-(defun unify (pattern fact-args &optional (bindings +no-bindings+))
+(defun unify (pattern fact-args &optional (bindings +no-bindings+)
+                         predicate (position 0) (original-pattern pattern))
   "Attempt to unify PATTERN (a list with possible ?variables) against
    FACT-ARGS (a ground list of symbols).
    BINDINGS is the current variable environment (an alist).
    Returns extended bindings on success, NIL on failure."
   (let ((bindings (or bindings +no-bindings+)))
     (cond
-    ;; Both lists exhausted simultaneously — success.
-    ((and (null pattern) (null fact-args))
-     bindings)
-    ;; One list is longer than the other — arity mismatch.
-    ((or (null pattern) (null fact-args))
-     nil)
-    (t
-     (let ((p (car pattern))
-           (f (car fact-args)))
-       (cond
-         ;; Pattern element is a variable.
-         ((variable-p p)
-          (multiple-value-bind (bound-val found)
-              (lookup-binding p bindings)
-            (if found
-                ;; Variable already bound — the value must match.
-                (when (term-equal bound-val f)
-                  (unify (cdr pattern) (cdr fact-args) bindings))
-                ;; Variable is free — bind it and continue.
-                (unify (cdr pattern) (cdr fact-args)
-                       (acons p f bindings)))))
-         ;; Pattern element is a ground atom — must match exactly.
-         ((term-equal p f)
-          (unify (cdr pattern) (cdr fact-args) bindings))
-         ;; No match.
-         (t nil)))))))
+      ((and (null pattern) (null fact-args))
+       bindings)
+      ((or (null pattern) (null fact-args))
+       nil)
+      (t
+       (let ((p (car pattern))
+             (f (car fact-args)))
+         (cond
+           ((variable-p p)
+            (multiple-value-bind (bound-val found)
+                (lookup-binding p bindings)
+              (if found
+                  (and (terms-match-p bound-val f predicate position
+                                       original-pattern)
+                       (unify (cdr pattern) (cdr fact-args) bindings
+                              predicate (1+ position) original-pattern))
+                  (unify (cdr pattern) (cdr fact-args)
+                         (acons p f bindings) predicate (1+ position)
+                         original-pattern))))
+           ((terms-match-p p f predicate position original-pattern)
+            (unify (cdr pattern) (cdr fact-args) bindings predicate
+                   (1+ position) original-pattern))
+           (t nil)))))))
 
 (defun apply-bindings (template bindings)
   "Replace every logic variable in TEMPLATE with its value from BINDINGS.
@@ -161,7 +163,7 @@
               nconcing
               (let ((new-bindings (unify pattern-args
                                          (jarvis.knowledge:fact-args fact)
-                                         bindings)))
+                                         bindings predicate 0 pattern-args)))
                 (if new-bindings
                     ;; Unification succeeded — recurse on remaining conditions.
                     (match-conditions rest-conds new-bindings)
