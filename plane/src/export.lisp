@@ -55,18 +55,25 @@
 (defun write-csv (trajectory-id path)
   (let ((trajectory (%trajectory trajectory-id)))
     (with-open-file (stream path :direction :output :if-exists :supersede
-                            :if-does-not-exist :create :external-format :utf-8)
-      (write-line "t,x,y,vx,vy" stream)
-      (loop for time in (jarvis.plane.sim:trajectory-times trajectory)
-            for state in (jarvis.plane.sim:trajectory-states trajectory)
-            do (format stream "~A,~A,~A,~A,~A~%"
-                       (%number-text time)
-                       (%number-text (aref state 0))
-                       (%number-text (aref state 1))
-                       (if (> (length state) 2)
-                           (%number-text (aref state 2)) "")
-                       (if (> (length state) 3)
-                           (%number-text (aref state 3)) "")))))
+                            :if-does-not-exist :create
+                            :element-type '(unsigned-byte 8))
+      (labels ((write-ascii (text)
+                 (loop for character across text
+                       do (write-byte (char-code character) stream))))
+        (write-ascii "t,x,y,vx,vy")
+        (write-byte 10 stream)
+        (loop for time in (jarvis.plane.sim:trajectory-times trajectory)
+              for state in (jarvis.plane.sim:trajectory-states trajectory)
+              do (write-ascii
+                  (format nil "~A,~A,~A,~A,~A"
+                          (%number-text time)
+                          (%number-text (aref state 0))
+                          (%number-text (aref state 1))
+                          (if (> (length state) 2)
+                              (%number-text (aref state 2)) "")
+                          (if (> (length state) 3)
+                              (%number-text (aref state 3)) "")))
+                 (write-byte 10 stream)))))
   path)
 
 (defun export-trajectory (trajectory-id format path)

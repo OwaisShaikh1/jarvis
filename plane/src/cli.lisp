@@ -130,6 +130,15 @@
             (format t "[export] ~A~%" (fourth tokens)))
         (error (condition) (format t "[export] ~A~%" condition)))))
 
+(defun %explain (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 2)
+      (format t "[explain] Usage: explain <trajectory-id>~%")
+      (handler-case
+          (jarvis.plane.explain:explain-trajectory
+           (intern (string-upcase (second tokens)) :jarvis.plane.sim))
+        (error (condition) (format t "[explain] ~A~%" condition)))))
+
 (defun %algebra-backend (tokens line)
   (declare (ignore line))
   (if (< (length tokens) 2)
@@ -177,6 +186,8 @@
                                 "Write a trajectory SVG or ASCII plot.")
   (jarvis.cli:register-command "export" #'%export
                                 "Export a trajectory as JSON or CSV.")
+  (jarvis.cli:register-command "explain" #'%explain
+                                "Explain trajectory method and numeric metadata.")
   (jarvis.cli:register-command "algebra-backend" #'%algebra-backend
                                 "Select native, Maxima, or cross-check algebra.")
   (jarvis.cli:register-command "enable-law"

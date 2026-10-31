@@ -42,7 +42,9 @@
   (:export #:sim-model #:register-sim-model #:simulate
            #:*sim-models* #:*trajectories* #:trajectory #:trajectory-p
            #:trajectory-id #:trajectory-entity #:trajectory-model
-           #:trajectory-times #:trajectory-states #:trajectory-summaries))
+           #:trajectory-times #:trajectory-states #:trajectory-summaries
+           #:trajectory-status #:trajectory-method #:trajectory-tolerance
+           #:trajectory-error-estimate #:trajectory-backend))
 
 (defpackage :jarvis.plane.laws
   (:use :cl)
@@ -63,6 +65,10 @@
 (defpackage :jarvis.plane.export
   (:use :cl)
   (:export #:write-json #:write-csv #:export-trajectory))
+
+(defpackage :jarvis.plane.explain
+  (:use :cl)
+  (:export #:explain-trajectory))
 
 (defpackage :jarvis.plane.cli
   (:use :cl)

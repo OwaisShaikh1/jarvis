@@ -226,10 +226,13 @@ plane-new
 add-entity ball particle mass=1 v0=10 angle=0.7853981634
 simulate ball ballistic 1 0.05
 plot TRAJ-1 trajectory.svg
+explain TRAJ-1
 export TRAJ-1 json trajectory.json
 export TRAJ-1 csv trajectory.csv
 ```
 
+`explain` reports the trajectory status, numerical method, tolerance,
+error estimate, algebra backend, and SI summary values.
 SVG output contains axes, five labeled ticks per axis, the trajectory,
 apex/impact markers and labels, and sampled velocity arrows. JSON contains
 trajectory metadata, every state sample, and summary values. CSV uses the

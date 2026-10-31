@@ -1,7 +1,9 @@
 (in-package :jarvis.plane.sim)
 
 (defstruct sim-model name builder)
-(defstruct trajectory id entity model times states summaries)
+(defstruct trajectory id entity model times states summaries
+  (status :unknown) (method :rk45) (tolerance 1d-9)
+  (error-estimate 0d0) (backend :native))
 
 (defparameter *sim-models* (make-hash-table :test #'eq))
 (defparameter *trajectories* (make-hash-table :test #'eq))
@@ -106,10 +108,17 @@
                      t-end :h0 dt)))
            (times (first result))
            (states (second result))
+           (status (third result))
+           (metadata (fourth result))
            (id (intern (format nil "TRAJ-~D" (incf *trajectory-sequence*))
                        :jarvis.plane.sim))
            (trajectory (make-trajectory :id id :entity entity :model model
-                                        :times times :states states)))
+                                        :times times :states states
+                                        :status status
+                                        :tolerance 1d-9
+                                        :error-estimate
+                                        (getf metadata :max-error-estimate)
+                                        :backend :native)))
       (setf (trajectory-summaries trajectory)
             (%summary entity model times states))
       (setf (gethash id *trajectories*) trajectory)
