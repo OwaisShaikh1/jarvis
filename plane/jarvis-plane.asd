@@ -10,4 +10,6 @@
                (:file "model")
                (:file "algebra-protocol")
                (:file "algebra-native")
-               (:file "numerics")))
+               (:file "numerics")
+               (:file "sim")
+               (:file "laws")))

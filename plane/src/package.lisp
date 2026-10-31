@@ -34,3 +34,15 @@
   (:use :cl)
   (:export #:rk4 #:rk45 #:event #:make-event
            #:newton-solve #:levenberg-marquardt))
+
+(defpackage :jarvis.plane.sim
+  (:use :cl)
+  (:export #:sim-model #:register-sim-model #:simulate
+           #:*sim-models* #:*trajectories* #:trajectory #:trajectory-p
+           #:trajectory-id #:trajectory-entity #:trajectory-model
+           #:trajectory-times #:trajectory-states #:trajectory-summaries))
+
+(defpackage :jarvis.plane.laws
+  (:use :cl)
+  (:export #:law #:enable-law #:disable-law #:laws
+           #:law-enabled-p #:*law-registry* #:apply-enabled-laws))
