@@ -6,12 +6,8 @@
 (defmacro with-clean-kb (&body body)
   `(progn
      (ensure-directories-exist *test-data-dir*)
-     (let ((cl-user::*persistence-dir* *test-data-dir*)
-           (cl-user::*facts-file* (merge-pathnames "facts.txt" *test-data-dir*))
-           (cl-user::*rules-file* (merge-pathnames "rules.txt" *test-data-dir*)))
-       (declare (ignore cl-user::*persistence-dir*
-                        cl-user::*facts-file*
-                        cl-user::*rules-file*))
+     (let ((cl-user::*data-dir* *test-data-dir*))
+       (declare (ignore cl-user::*data-dir*))
        (jarvis.knowledge:clear-databases)
        (jarvis.truth-maintenance:clear-tms)
        (jarvis.trace:clear-traces)

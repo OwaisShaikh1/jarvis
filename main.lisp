@@ -367,15 +367,21 @@
 ;;; CLI helpers
 ;;; ---------------------------------------------------------------------------
 
-(defparameter *persistence-dir* #P"data/")
-(defparameter *facts-file* #P"data/facts.txt")
-(defparameter *rules-file* #P"data/rules.txt")
+(defvar *data-dir* (asdf:system-relative-pathname :jarvis "data/"))
 (defvar *persistence-loaded-p* nil)
+
+(defun facts-file ()
+        "Return the absolute path of the persisted facts file."
+        (merge-pathnames "facts.txt" *data-dir*))
+
+(defun rules-file ()
+        "Return the absolute path of the persisted rules file."
+        (merge-pathnames "rules.txt" *data-dir*))
 
 (defun ensure-persistence-paths ()
         "Ensure the persistence directory exists before reading/writing files."
-        (ensure-directories-exist *facts-file*)
-        (ensure-directories-exist *rules-file*)
+        (ensure-directories-exist (facts-file))
+        (ensure-directories-exist (rules-file))
         (values))
 
 (defun fact->record (fact)
@@ -428,28 +434,29 @@
 (defun save-persistent-state ()
         "Persist all current facts and rules to separate txt files."
         (ensure-persistence-paths)
-        (with-open-file (out *facts-file*
-                                                 :direction :output
-                                                 :if-exists :supersede
-                                                 :if-does-not-exist :create)
-                (dolist (fact (jarvis.knowledge:all-facts))
-                        (prin1 (fact->record fact) out)
-                        (terpri out)))
-        (with-open-file (out *rules-file*
-                                                 :direction :output
-                                                 :if-exists :supersede
-                                                 :if-does-not-exist :create)
-                (dolist (rule (jarvis.knowledge:all-rules))
-                        (prin1 (rule->record rule) out)
-                        (terpri out)))
+        (let ((*read-default-float-format* 'double-float))
+          (with-open-file (out (facts-file)
+                                                   :direction :output
+                                                   :if-exists :supersede
+                                                   :if-does-not-exist :create)
+                  (dolist (fact (jarvis.knowledge:all-facts))
+                          (prin1 (fact->record fact) out)
+                          (terpri out)))
+          (with-open-file (out (rules-file)
+                                                   :direction :output
+                                                   :if-exists :supersede
+                                                   :if-does-not-exist :create)
+                  (dolist (rule (jarvis.knowledge:all-rules))
+                          (prin1 (rule->record rule) out)
+                          (terpri out))))
         (values))
 
 (defun load-persistent-state ()
         "Load facts and rules from persistence files once per process." 
         (unless *persistence-loaded-p*
                 (ensure-persistence-paths)
-                (when (probe-file *facts-file*)
-                        (with-open-file (in *facts-file* :direction :input)
+                (when (probe-file (facts-file))
+                        (with-open-file (in (facts-file) :direction :input)
                                 (let ((*read-eval* nil)
                                       ;; Persisted records are interpreted as CL-USER data.
                                       (*package* (find-package :cl-user))
@@ -457,8 +464,8 @@
                                   (loop for record = (read in nil :eof)
                                             until (eq record :eof)
                                             do (jarvis.knowledge:store-fact (record->fact record))))))
-                (when (probe-file *rules-file*)
-                        (with-open-file (in *rules-file* :direction :input)
+                (when (probe-file (rules-file))
+                        (with-open-file (in (rules-file) :direction :input)
                                 (let ((*read-eval* nil)
                                       ;; Persisted records are interpreted as CL-USER data.
                                       (*package* (find-package :cl-user))
