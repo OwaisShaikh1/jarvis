@@ -80,7 +80,7 @@
     (jarvis.inference:run-inference)
     (is (find-fact 'matched 'b1))))
 
-(test p2-recursive-expression (:expected-failure "P2: bindings are flat")
+(test p2-recursive-expression
   (with-clean-kb
     (jarvis.knowledge:store-fact
      (jarvis.knowledge:make-fact 'distance 'b1 10))
@@ -90,7 +90,7 @@
       '((distance ?b ?d))
       '(speed ?b (/ ?d 2))))
     (jarvis.inference:run-inference)
-    (is (find-fact 'speed 'b1 '(/ ?d 2)))))
+    (is (find-fact 'speed 'b1 '(/ 10 2)))))
 
 (test p3-nil-binding
   (with-clean-kb

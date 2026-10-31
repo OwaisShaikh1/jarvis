@@ -113,15 +113,16 @@
 
 (defun apply-bindings (template bindings)
   "Replace every logic variable in TEMPLATE with its value from BINDINGS.
-   TEMPLATE is a flat list of atoms/variables (a rule conclusion pattern).
-   Unbound variables are left in place — the caller should treat such a
-   result as an incomplete instantiation and discard it."
-  (mapcar (lambda (element)
-            (if (variable-p element)
-                ;; Substitute the bound value, or leave the variable as-is.
-                (or (lookup-binding element bindings) element)
-                element))
-          template))
+   Recurses through nested lists and preserves variables that are unbound."
+  (cond
+    ((variable-p template)
+     (multiple-value-bind (value found)
+         (lookup-binding template bindings)
+       (if found value template)))
+    ((consp template)
+     (cons (apply-bindings (car template) bindings)
+           (apply-bindings (cdr template) bindings)))
+    (t template)))
 
 
 ;;; ---------------------------------------------------------------------------
