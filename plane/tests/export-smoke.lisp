@@ -6,13 +6,19 @@
                                       :defaults *load-truename*)))
 (asdf:load-system :jarvis-plane)
 
+(defun count-substring (needle haystack)
+  (loop with start = 0
+        for position = (search needle haystack :start2 start)
+        while position
+        do (setf start (+ position (length needle)))
+        count 1))
+
 (jarvis.plane.model:clear-plane)
 (jarvis.plane.model:add-entity 'ball 'particle
                                :params '((mass 1d0) (v0 10d0)
                                          (angle 0.7853981633974483d0)))
 (multiple-value-bind (id trajectory)
     (jarvis.plane.sim:simulate 'ball :ballistic 1d0 0.05d0)
-  (declare (ignore trajectory))
   (let ((json (merge-pathnames "plane-test.json" (truename ".")))
         (csv (merge-pathnames "plane-test.csv" (truename "."))))
     (jarvis.plane.export:write-json id json)
@@ -22,7 +28,11 @@
         (read-sequence contents stream)
         (assert (char= (char contents 0) #\{))
         (assert (search "\"samples\"" contents))
-        (assert (search "\"summaries\"" contents))))
+        (assert (search "\"summaries\"" contents))
+        (assert (= (count-substring "\"t\":" contents)
+                   (length (jarvis.plane.sim:trajectory-times trajectory))))
+        (assert (not (search ",]" contents)))
+        (assert (not (search ",}" contents)))))
     (with-open-file (stream csv :element-type '(unsigned-byte 8))
       (let ((contents (make-array (file-length stream)
                                   :element-type '(unsigned-byte 8))))

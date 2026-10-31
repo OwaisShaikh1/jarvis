@@ -26,19 +26,41 @@
                              character #\_)
                          stream))))
 
-(defun %write-ticks (stream low high x-origin y-origin width height)
+(defun %nice-step (low high)
+  (let* ((raw (/ (- high low) 4d0))
+         (power (expt 10d0 (floor (log (max raw 1d-12) 10d0))))
+         (scaled (/ raw power))
+         (factor (cond ((<= scaled 1d0) 1d0)
+                       ((<= scaled 2d0) 2d0)
+                       ((<= scaled 5d0) 5d0)
+                       (t 10d0))))
+    (* factor power)))
+
+(defun %tick-values (low high)
+  (let* ((step (%nice-step low high))
+         (first (* step (ceiling low step))))
+    (loop for index below 5
+          collect (+ first (* index step)))))
+
+(defun %write-ticks (stream x-low x-high y-low y-high
+                     x-origin y-origin width height)
+  (let ((x-ticks (%tick-values x-low x-high))
+        (y-ticks (%tick-values y-low y-high)))
   (dotimes (index 5)
-    (let* ((fraction (/ index 4d0))
-          (x-value (+ low (* fraction (- high low))))
-          (y-value (+ low (* fraction (- high low)))))
+    (let* ((x-value (nth index x-ticks))
+           (y-value (nth index y-ticks))
+           (x-fraction (/ (- x-value x-low) (- x-high x-low)))
+           (y-fraction (/ (- y-value y-low) (- y-high y-low))))
       (format stream "  <line x1=\"~,3F\" y1=\"450\" x2=\"~,3F\" y2=\"456\" stroke=\"gray\"/>~%"
-              (+ x-origin (* fraction width)) (+ x-origin (* fraction width)))
+              (+ x-origin (* x-fraction width))
+              (+ x-origin (* x-fraction width)))
       (format stream "  <text x=\"~,3F\" y=\"470\" font-size=\"10\">~,6G</text>~%"
-              (+ x-origin (* fraction width)) x-value)
+              (+ x-origin (* x-fraction width)) x-value)
       (format stream "  <line x1=\"44\" y1=\"~,3F\" x2=\"50\" y2=\"~,3F\" stroke=\"gray\"/>~%"
-              (- y-origin (* fraction height)) (- y-origin (* fraction height)))
+              (- y-origin (* y-fraction height))
+              (- y-origin (* y-fraction height)))
       (format stream "  <text x=\"8\" y=\"~,3F\" font-size=\"10\">~,6G</text>~%"
-              (- y-origin (* fraction height)) y-value))))
+              (- y-origin (* y-fraction height)) y-value)))))
 
 (defun write-svg (trajectory-id path)
   (let* ((trajectory (%trajectory trajectory-id))
@@ -62,7 +84,7 @@
       (format stream "  <defs><marker id=\"arrow\" markerWidth=\"6\" markerHeight=\"6\" refX=\"5\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 z\" fill=\"green\"/></marker></defs>~%")
       (format stream "  <line x1=\"50\" y1=\"450\" x2=\"780\" y2=\"450\" stroke=\"black\"/>~%")
       (format stream "  <line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"450\" stroke=\"black\"/>~%")
-      (%write-ticks stream xmin xmax x-origin y-origin width height)
+      (%write-ticks stream xmin xmax ymin ymax x-origin y-origin width height)
       (format stream "  <polyline fill=\"none\" stroke=\"blue\" points=\"")
       (dolist (point points)
         (format stream "~,6F,~,6F "
