@@ -458,8 +458,9 @@
                                                    :if-exists :supersede
                                                    :if-does-not-exist :create)
                   (dolist (fact (jarvis.knowledge:all-facts))
-                          (prin1 (fact->record fact) out)
-                          (terpri out)))
+                    (unless (jarvis.knowledge:fact-derived-p fact)
+                      (prin1 (fact->record fact) out)
+                      (terpri out))))
           (with-open-file (out (rules-file)
                                                    :direction :output
                                                    :if-exists :supersede
@@ -481,7 +482,9 @@
                                       (*read-default-float-format* 'double-float))
                                   (loop for record = (read in nil :eof)
                                             until (eq record :eof)
-                                            do (jarvis.knowledge:store-fact (record->fact record))))))
+                                            do (unless (getf record :derived)
+                                                 (jarvis.knowledge:store-fact
+                                                  (record->fact record)))))))
                 (when (probe-file (rules-file))
                         (with-open-file (in (rules-file) :direction :input)
                                 (let ((*read-eval* nil)
@@ -491,7 +494,8 @@
                                   (loop for record = (read in nil :eof)
                                             until (eq record :eof)
                                             do (load-rule-record record)))))
-                (setf *persistence-loaded-p* t))
+                (setf *persistence-loaded-p* t)
+                (jarvis.engine:infer :quiet t))
         (values))
 
 (defun ws-char-p (ch)

@@ -160,6 +160,28 @@
 (test p9-empty-variable-name
   (is-false (jarvis.inference::variable-p (make-symbol ""))))
 
+(test persistence-rebuilds-derived-facts
+  (with-clean-kb
+    (let ((cl-user::*data-dir* *test-data-dir*)
+          (cl-user::*persistence-loaded-p* nil))
+      (jarvis.knowledge:store-fact
+       (jarvis.knowledge:make-fact 'human 'a))
+      (jarvis.knowledge:store-rule
+       (jarvis.knowledge:make-rule 'mortal '((human ?x)) '(mortal ?x)))
+      (cl-user::save-persistent-state)
+      (jarvis.knowledge:clear-databases)
+      (jarvis.truth-maintenance:clear-tms)
+      (setf cl-user::*persistence-loaded-p* nil)
+      (cl-user::load-persistent-state)
+      (let ((derived (find-fact 'mortal 'a)))
+        (is derived)
+        (is (jarvis.truth-maintenance:justification-for
+             (jarvis.knowledge:fact-id derived)))
+        (jarvis.truth-maintenance:retract-with-support
+         (jarvis.knowledge:fact-id
+          (find-fact 'human 'a)))
+        (is (null (find-fact 'mortal 'a)))))))
+
 (test reader-safety
   (multiple-value-bind (form position error)
       (cl-user::parse-one-form "#.(+ 1 2)")
