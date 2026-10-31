@@ -13,4 +13,5 @@
                (:file "numerics")
                (:file "sim")
                (:file "laws")
+               (:file "infer")
                (:file "cli")))

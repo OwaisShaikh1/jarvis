@@ -16,6 +16,10 @@
                "laws")))
 (assert (null (jarvis.cli:jarvis-cli-handle-command
                "enable-law spring-period")))
+(assert (null (jarvis.cli:jarvis-cli-handle-command
+               "observe ball spring-period 1.4 sigma=0.01")))
+(assert (null (jarvis.cli:jarvis-cli-handle-command
+               "infer-params ball k")))
 (assert (jarvis.plane.laws:law-enabled-p
          (jarvis.plane.laws:law 'spring-period)))
 (format t "jarvis-plane CLI smoke tests passed.~%")

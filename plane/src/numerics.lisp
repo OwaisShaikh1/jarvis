@@ -161,6 +161,11 @@
                                                    (max-iter 100) (ftol 1d-12)
                                                    (xtol 1d-12))
   (let ((p (dv p0)) (lambda lambda0) (iterations 0))
+    (let ((initial (dv (funcall residual-fn p))))
+      (when (<= (norm2 initial) ftol)
+        (return-from levenberg-marquardt
+          (list :p p :ssr (reduce #'+ initial :key (lambda (x) (* x x)))
+                :iterations 0 :status :converged :jacobian nil))))
     (loop while (< iterations max-iter)
           do (incf iterations)
              (let* ((r (dv (funcall residual-fn p)))

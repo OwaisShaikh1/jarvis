@@ -48,6 +48,12 @@
            #:law-enabled-p #:*law-registry* #:apply-enabled-laws
            #:evaluate-law))
 
+(defpackage :jarvis.plane.infer
+  (:use :cl)
+  (:export #:observation #:observe #:clear-observations #:*observations* #:predict
+           #:infer-params #:observation-id #:observation-entity #:observation-quantity
+           #:observation-value #:observation-sigma))
+
 (defpackage :jarvis.plane.cli
   (:use :cl)
   (:export #:register-plane-commands))

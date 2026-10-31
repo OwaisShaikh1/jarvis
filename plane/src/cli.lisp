@@ -21,6 +21,7 @@
   (declare (ignore tokens line))
   (jarvis.plane.model:clear-plane)
   (clrhash jarvis.plane.sim:*trajectories*)
+  (jarvis.plane.infer:clear-observations)
   (format t "[plane] new plane~%"))
 
 (defun %add-entity (tokens line)
@@ -67,6 +68,42 @@
             (jarvis.plane.laws:law-name entry)
             (jarvis.plane.laws:law-enabled-p entry))))
 
+(defun %observe (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 4)
+      (format t "[observe] Usage: observe <entity> <quantity> <value> [sigma=<n>]~%")
+      (handler-case
+          (let ((entity (intern (string-upcase (second tokens))
+                                :jarvis.plane.model))
+                (quantity (intern (string-upcase (third tokens))
+                                  :jarvis.plane.laws))
+                (value (%number (fourth tokens)))
+                (sigma 0d0))
+            (dolist (token (cddddr tokens))
+              (when (search "sigma=" token :test #'char-equal)
+                (setf sigma (%number (subseq token 6)))))
+            (let ((observation (jarvis.plane.infer:observe
+                                entity quantity value :sigma sigma)))
+              (format t "[observe] ~A ~A ~A = ~A~%"
+                      (jarvis.plane.infer:observation-id observation)
+                      entity quantity value)))
+        (error (condition) (format t "[observe] ~A~%" condition)))))
+
+(defun %infer-params (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 3)
+      (format t "[infer-params] Usage: infer-params <entity> <p1> [p2 ...]~%")
+      (handler-case
+          (let ((entity (intern (string-upcase (second tokens))
+                                :jarvis.plane.model))
+                (names (mapcar (lambda (token)
+                                 (intern (string-upcase token)
+                                         :jarvis.plane.model))
+                               (cddr tokens))))
+            (format t "[infer-params] ~S~%"
+                    (jarvis.plane.infer:infer-params entity names)))
+        (error (condition) (format t "[infer-params] ~A~%" condition)))))
+
 (defun %enable-law (tokens line enabled)
   (declare (ignore line))
   (if (< (length tokens) 2)
@@ -91,6 +128,10 @@
                                 "Run a registered simulation model.")
   (jarvis.cli:register-command "laws" #'%laws
                                 "List registered physics laws.")
+  (jarvis.cli:register-command "observe" #'%observe
+                                "Record a numeric observation.")
+  (jarvis.cli:register-command "infer-params" #'%infer-params
+                                "Fit unknown entity parameters.")
   (jarvis.cli:register-command "enable-law"
                                 (lambda (tokens line)
                                   (%enable-law tokens line t))

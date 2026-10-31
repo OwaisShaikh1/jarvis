@@ -232,7 +232,17 @@ for batch evaluation:
  '(:v0 10d0 :angle 0.7853981634d0 :g 9.81d0))
 ```
 
-The plane CLI commands and full fact-backed law inference remain planned work.
+Numeric observations and LM parameter fitting are available through the plane
+API and CLI:
+
+```text
+observe spring spring-period 1.404962946 sigma=0.000001
+infer-params spring k
+```
+
+The plane CLI also supports `plane-new`, `add-entity`, `simulate`, `laws`,
+`enable-law`, and `disable-law`. Full fact-backed derivation metadata,
+uncertainty analysis, sweeps, and plotting remain planned work.
 
 ## Matching and Unification
 
