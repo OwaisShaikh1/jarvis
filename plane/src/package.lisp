@@ -22,3 +22,10 @@
            #:def-param-kind #:declare-predicate-dims #:def-entity-type
            #:*entity-registry* #:*param-kinds* #:*entity-types*
            #:clear-plane))
+
+(defpackage :jarvis.plane.algebra
+  (:use :cl)
+  (:export #:alg-simplify #:alg-substitute #:alg-diff #:alg-solve
+           #:alg-evaluate #:alg-capabilities #:to-canonical
+           #:native-backend #:*algebra-backend* #:with-backend
+           #:cannot-solve #:backend-unavailable))

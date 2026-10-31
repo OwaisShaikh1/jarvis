@@ -7,4 +7,6 @@
                (:file "numeric")
                (:file "units")
                (:file "expr")
-               (:file "model")))
+               (:file "model")
+               (:file "algebra-protocol")
+               (:file "algebra-native")))
