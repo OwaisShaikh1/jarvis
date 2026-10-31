@@ -35,6 +35,13 @@
     :components ((:file "package")
                  (:file "graph")))
 
+   ;; CLI compatibility layer.
+   (:module "src/cli"
+    :serial t
+    :components ((:file "package")
+                 (:file "legacy")
+                 (:file "compat")))
+
    ;; Layers 6–10 — stubs, ready for implementation
    (:module "src/abstraction"
     :components ((:file "package")))
