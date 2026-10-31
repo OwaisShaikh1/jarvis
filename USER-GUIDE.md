@@ -241,8 +241,16 @@ infer-params spring k
 ```
 
 The plane CLI also supports `plane-new`, `add-entity`, `simulate`, `laws`,
-`enable-law`, and `disable-law`. Full fact-backed derivation metadata,
-uncertainty analysis, sweeps, and plotting remain planned work.
+`enable-law`, `disable-law`, `observe`, and `infer-params`. Trajectories can be
+exported as deterministic SVG or plotted as ASCII:
+
+```text
+plot TRAJ-1 trajectory.svg
+plot TRAJ-1 -
+```
+
+Full fact-backed derivation metadata, uncertainty analysis, and sweeps remain
+planned work.
 
 ## Matching and Unification
 

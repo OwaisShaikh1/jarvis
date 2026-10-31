@@ -104,6 +104,20 @@
                     (jarvis.plane.infer:infer-params entity names)))
         (error (condition) (format t "[infer-params] ~A~%" condition)))))
 
+(defun %plot (tokens line)
+  (declare (ignore line))
+  (if (< (length tokens) 3)
+      (format t "[plot] Usage: plot <trajectory-id> <file.svg|->~%")
+      (handler-case
+          (let ((id (intern (string-upcase (second tokens))
+                            :jarvis.plane.sim))
+                (path (third tokens)))
+            (if (string= path "-")
+                (jarvis.plane.svg:plot-ascii id)
+                (jarvis.plane.svg:write-svg id path))
+            (format t "[plot] ~A~%" path))
+        (error (condition) (format t "[plot] ~A~%" condition)))))
+
 (defun %enable-law (tokens line enabled)
   (declare (ignore line))
   (if (< (length tokens) 2)
@@ -132,6 +146,8 @@
                                 "Record a numeric observation.")
   (jarvis.cli:register-command "infer-params" #'%infer-params
                                 "Fit unknown entity parameters.")
+  (jarvis.cli:register-command "plot" #'%plot
+                                "Write a trajectory SVG or ASCII plot.")
   (jarvis.cli:register-command "enable-law"
                                 (lambda (tokens line)
                                   (%enable-law tokens line t))

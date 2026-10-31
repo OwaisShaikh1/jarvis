@@ -14,4 +14,5 @@
                (:file "sim")
                (:file "laws")
                (:file "infer")
+               (:file "svg")
                (:file "cli")))

@@ -54,6 +54,10 @@
            #:infer-params #:observation-id #:observation-entity #:observation-quantity
            #:observation-value #:observation-sigma))
 
+(defpackage :jarvis.plane.svg
+  (:use :cl)
+  (:export #:write-svg #:plot-ascii))
+
 (defpackage :jarvis.plane.cli
   (:use :cl)
   (:export #:register-plane-commands))
