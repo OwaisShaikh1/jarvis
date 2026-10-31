@@ -40,15 +40,26 @@
 ;;; Section 1 — Logic variable helpers
 ;;; ---------------------------------------------------------------------------
 
+(defparameter +no-bindings+ '((t . t))
+  "Marker for a successful match with no variable bindings.")
+
 (defun variable-p (x)
   "Return T if X is a logic variable — a symbol whose name starts with '?'."
   (and (symbolp x)
-       (char= (char (symbol-name x) 0) #\?)))
+       (let ((name (symbol-name x)))
+         (and (plusp (length name))
+              (char= (char name 0) #\?)))))
 
 (defun lookup-binding (var bindings)
-  "Return the value bound to VAR in BINDINGS, or NIL if unbound.
-   BINDINGS is an alist of (variable . value) pairs."
-  (cdr (assoc var bindings :test #'eq)))
+  "Return two values: the value bound to VAR and whether it is bound."
+  (let ((cell (assoc var bindings :test #'eq)))
+    (if cell
+        (values (cdr cell) t)
+        (values nil nil))))
+
+(defun term-equal (a b)
+  "Compare two terms using the core exact matching policy."
+  (equal a b))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -66,12 +77,13 @@
 ;;; Returns the (possibly extended) bindings on success, or NIL on failure.
 ;;; ---------------------------------------------------------------------------
 
-(defun unify (pattern fact-args bindings)
+(defun unify (pattern fact-args &optional (bindings +no-bindings+))
   "Attempt to unify PATTERN (a list with possible ?variables) against
    FACT-ARGS (a ground list of symbols).
    BINDINGS is the current variable environment (an alist).
    Returns extended bindings on success, NIL on failure."
-  (cond
+  (let ((bindings (or bindings +no-bindings+)))
+    (cond
     ;; Both lists exhausted simultaneously — success.
     ((and (null pattern) (null fact-args))
      bindings)
@@ -84,19 +96,20 @@
        (cond
          ;; Pattern element is a variable.
          ((variable-p p)
-          (let ((bound-val (lookup-binding p bindings)))
-            (if bound-val
+          (multiple-value-bind (bound-val found)
+              (lookup-binding p bindings)
+            (if found
                 ;; Variable already bound — the value must match.
-                (when (equal bound-val f)
+                (when (term-equal bound-val f)
                   (unify (cdr pattern) (cdr fact-args) bindings))
                 ;; Variable is free — bind it and continue.
                 (unify (cdr pattern) (cdr fact-args)
                        (acons p f bindings)))))
          ;; Pattern element is a ground atom — must match exactly.
-         ((equal p f)
+         ((term-equal p f)
           (unify (cdr pattern) (cdr fact-args) bindings))
          ;; No match.
-         (t nil))))))
+         (t nil)))))))
 
 (defun apply-bindings (template bindings)
   "Replace every logic variable in TEMPLATE with its value from BINDINGS.
@@ -195,7 +208,8 @@
   (setf (agenda-items agenda) nil)
   (dolist (rule (jarvis.knowledge:all-rules))
     ;; Try to satisfy all conditions of this rule.
-    (dolist (bindings (match-conditions (jarvis.knowledge:rule-conditions rule) nil))
+    (dolist (bindings (match-conditions (jarvis.knowledge:rule-conditions rule)
+                                        +no-bindings+))
       (agenda-push agenda rule bindings))))
 
 

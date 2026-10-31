@@ -18,7 +18,8 @@
   (:use :cl :jarvis.knowledge)
   (:export
    ;; ── Unification ──────────────────────────────────────────────────────────
-   #:unify              ; (pattern fact bindings) → bindings | NIL
+   #:+no-bindings+      ; successful empty binding environment
+   #:unify              ; (pattern fact &optional bindings) → bindings | NIL
    #:apply-bindings     ; (template bindings) → ground term
 
    ;; ── Agenda ───────────────────────────────────────────────────────────────

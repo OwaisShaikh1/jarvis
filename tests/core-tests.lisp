@@ -92,7 +92,7 @@
     (jarvis.inference:run-inference)
     (is (find-fact 'speed 'b1 '(/ ?d 2)))))
 
-(test p3-nil-binding (:expected-failure "P3: NIL is treated as unbound")
+(test p3-nil-binding
   (with-clean-kb
     (jarvis.knowledge:store-fact
      (jarvis.knowledge:make-fact 'p 'a nil))
@@ -142,7 +142,7 @@
     (jarvis.inference:run-inference)
     (is (null (jarvis.inference:run-inference)))))
 
-(test p7-ground-condition (:expected-failure "P7: empty bindings signal failure")
+(test p7-ground-condition
   (with-clean-kb
     (jarvis.knowledge:store-fact
      (jarvis.knowledge:make-fact 'alive 'plato))
@@ -157,7 +157,7 @@
       (jarvis.knowledge:make-rule
        'unbound '((human ?x)) '(likes ?x ?y)))))
 
-(test p9-empty-variable-name (:expected-failure "P9: empty symbol names signal")
+(test p9-empty-variable-name
   (is-false (jarvis.inference::variable-p (make-symbol ""))))
 
 (test reader-safety
