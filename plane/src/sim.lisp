@@ -46,7 +46,20 @@
             (declare (ignore time))
             (vector (aref state 2) (aref state 3)
                     (- (/ (* drag (aref state 2)) mass))
-                    (- g (/ (* drag (aref state 3)) mass)))))))
+                    (- g (/ (* drag (aref state 3)) mass))))
+          :events
+          (list (jarvis.plane.numerics:make-event
+                 :name :impact
+                 :fn (lambda (time state)
+                       (declare (ignore time))
+                       (aref state 1))
+                 :direction :falling :terminal t)
+                (jarvis.plane.numerics:make-event
+                 :name :apex
+                 :fn (lambda (time state)
+                       (declare (ignore time))
+                       (aref state 3))
+                 :direction :falling :terminal nil)))))
 
 (defun %spring-builder (entity)
   (let ((k (%entity-param entity 'k 1d0))
@@ -63,12 +76,22 @@
 (defun %incline-builder (entity)
   (let ((g (%param 'world 'g 9.81d0))
         (angle (%entity-param entity 'angle 0d0))
-        (mu (%entity-param entity 'mu 0d0)))
+        (mu (%entity-param entity 'mu 0d0))
+        (distance (%entity-param entity 'distance)))
     (list :state0 (vector 0d0 0d0)
           :derivative
           (lambda (time state)
-            (declare (ignore time state))
-            (vector 0d0 (* g (- (sin angle) (* mu (cos angle)))))))))
+            (declare (ignore time))
+            (vector (aref state 1)
+                    (* g (- (sin angle) (* mu (cos angle))))))
+          :events
+          (when distance
+            (list (jarvis.plane.numerics:make-event
+                   :name :distance
+                   :fn (lambda (time state)
+                         (declare (ignore time))
+                         (- (aref state 0) distance))
+                   :direction :rising :terminal t))))))
 
 (defun %store-summary (entity model key value trajectory-id)
   (declare (ignore trajectory-id))
@@ -78,21 +101,36 @@
     (jarvis.knowledge:store-fact fact)
     fact))
 
-(defun %summary (entity model times states)
-  (let* ((last-state (car (last states)))
-         (ys (when (= (length last-state) 4)
+(defun %event-record (events name)
+  "Find the first recorded simulation event named NAME."
+  (find name events :key #'first :test #'eq))
+
+(defun %summary (entity model times states events)
+  "Create summary facts from the final state and recorded events."
+  (let* ((sampled-final (car (last states)))
+         (impact (%event-record events :impact))
+         (apex-event (%event-record events :apex))
+         (last-state (if impact (third impact) sampled-final))
+         (last-time (if impact (second impact) (car (last times))))
+         (ys (when (= (length sampled-final) 4)
                (mapcar (lambda (state) (aref state 1)) states)))
-         (apex (when ys (apply #'max ys)))
-         (apex-index (when ys (position apex ys :test #'=)))
+         (apex (if apex-event
+                   (aref (third apex-event) 1)
+                   (when ys (apply #'max ys))))
+         (apex-index (when (and ys (not apex-event))
+                       (position apex ys :test #'=)))
+         (apex-time (if apex-event
+                        (second apex-event)
+                        (when apex-index (nth apex-index times))))
          (pairs (list :final-x (aref last-state 0)
-                      :final-t (car (last times)))))
+                      :final-t last-time)))
     (when (= (length last-state) 4)
       (setf pairs (append pairs
                           (list :final-y (aref last-state 1)
                                 :range (aref last-state 0)
                                 :apex-height apex
-                                :apex-time (nth apex-index times)
-                                :flight-time (car (last times))))))
+                                :apex-time apex-time
+                                :flight-time last-time))))
     (when (= (length last-state) 2)
       (setf pairs (append pairs (list :final-s (aref last-state 0)))))
     (loop for (key value) on pairs by #'cddr
@@ -105,7 +143,7 @@
            (result (multiple-value-list
                     (jarvis.plane.numerics:rk45
                      (getf built :derivative) 0d0 (getf built :state0)
-                     t-end :h0 dt)))
+                     t-end :h0 dt :events (getf built :events))))
            (times (first result))
            (states (second result))
            (status (third result))
@@ -120,7 +158,7 @@
                                         (getf metadata :max-error-estimate)
                                         :backend :native)))
       (setf (trajectory-summaries trajectory)
-            (%summary entity model times states))
+            (%summary entity model times states (getf metadata :events)))
       (setf (gethash id *trajectories*) trajectory)
       (values id trajectory))))
 
