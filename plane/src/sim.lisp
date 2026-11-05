@@ -16,15 +16,24 @@
         (make-sim-model :name name :builder builder))
   name)
 
+(defun %same-symbol-name-p (left right)
+  "Compare symbols by name so user symbols work across package boundaries."
+  (if (and (symbolp left) (symbolp right))
+      (string-equal (symbol-name left) (symbol-name right))
+      (equal left right)))
+
 (defun %param (entity name &optional default)
+  "Read a plane parameter without assuming its symbol package."
   (let ((result default))
     (maphash
      (lambda (id fact)
        (declare (ignore id))
        (when (and (eq (jarvis.knowledge:fact-predicate fact)
                       'jarvis.plane.model::param)
-                  (equal (first (jarvis.knowledge:fact-args fact)) entity)
-                  (equal (second (jarvis.knowledge:fact-args fact)) name))
+                  (%same-symbol-name-p
+                   (first (jarvis.knowledge:fact-args fact)) entity)
+                  (%same-symbol-name-p
+                   (second (jarvis.knowledge:fact-args fact)) name))
          (setf result (third (jarvis.knowledge:fact-args fact)))))
      jarvis.knowledge:*fact-db*)
     result))
