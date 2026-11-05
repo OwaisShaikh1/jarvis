@@ -55,7 +55,7 @@
             (declare (ignore time))
             (vector (aref state 2) (aref state 3)
                     (- (/ (* drag (aref state 2)) mass))
-                    (- g (/ (* drag (aref state 3)) mass))))
+                    (- 0d0 g (/ (* drag (aref state 3)) mass))))
           :events
           (list (jarvis.plane.numerics:make-event
                  :name :impact
