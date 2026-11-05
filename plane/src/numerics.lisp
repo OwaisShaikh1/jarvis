@@ -161,7 +161,7 @@
                           (middle-value
                             (%event-value event middle-time middle-state)))
                      (if (or (zerop middle-value)
-                             (not (minusp (* low-value middle-value))))
+                             (minusp (* low-value middle-value)))
                          (setf high middle)
                          (setf low middle
                                low-value middle-value))))
